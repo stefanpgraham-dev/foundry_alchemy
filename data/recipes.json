@@ -1,0 +1,355 @@
+[
+  {
+    "id": "potion-of-healing",
+    "name": "Potion of Healing",
+    "cost": {
+      "common_curative": 3
+    }
+  },
+  {
+    "id": "potion-of-greater-healing",
+    "name": "Potion of Greater Healing",
+    "cost": {
+      "rare_curative": 1
+    }
+  },
+  {
+    "id": "potion-of-superior-healing",
+    "name": "Potion of Superior Healing",
+    "cost": {
+      "exotic_curative": 1
+    }
+  },
+  {
+    "id": "potion-of-supreme-healing",
+    "name": "Potion of Supreme Healing",
+    "cost": {
+      "exotic_curative": 3
+    }
+  },
+  {
+    "id": "philtre-of-love",
+    "name": "Philtre of Love",
+    "cost": {
+      "common_curative": 3,
+      "common_reactive": 2
+    }
+  },
+  {
+    "id": "potion-of-poison",
+    "name": "Potion of Poison",
+    "cost": {
+      "common_curative": 1,
+      "common_poisonous": 3,
+      "common_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-climbing",
+    "name": "Potion of Climbing",
+    "cost": {
+      "common_curative": 1,
+      "common_poisonous": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-heroism",
+    "name": "Potion of Heroism",
+    "cost": {
+      "rare_curative": 1,
+      "common_reactive": 2
+    }
+  },
+  {
+    "id": "potion-of-invisibility",
+    "name": "Potion of Invisibility",
+    "cost": {
+      "rare_curative": 2,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-mind-reading",
+    "name": "Potion of Mind Reading",
+    "cost": {
+      "common_curative": 1,
+      "common_poisonous": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-water-breathing",
+    "name": "Potion of Water Breathing",
+    "cost": {
+      "rare_curative": 1,
+      "rare_poisonous": 1,
+      "common_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-animal-friendship",
+    "name": "Potion of Animal Friendship",
+    "cost": {
+      "rare_curative": 1,
+      "common_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-diminution",
+    "name": "Potion of Diminution",
+    "cost": {
+      "rare_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-growth",
+    "name": "Potion of Growth",
+    "cost": {
+      "rare_curative": 2,
+      "common_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-gaseous-form",
+    "name": "Potion of Gaseous Form",
+    "cost": {
+      "common_curative": 2,
+      "common_poisonous": 2,
+      "rare_reactive": 2
+    }
+  },
+  {
+    "id": "potion-of-acid-resistance",
+    "name": "Potion of Acid Resistance",
+    "cost": {
+      "rare_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-cold-resistance",
+    "name": "Potion of Cold Resistance",
+    "cost": {
+      "rare_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-fire-resistance",
+    "name": "Potion of Fire Resistance",
+    "cost": {
+      "rare_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-force-resistance",
+    "name": "Potion of Force Resistance",
+    "cost": {
+      "rare_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-lightning-resistance",
+    "name": "Potion of Lightning Resistance",
+    "cost": {
+      "rare_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-necrotic-resistance",
+    "name": "Potion of Necrotic Resistance",
+    "cost": {
+      "rare_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-poison-resistance",
+    "name": "Potion of Poison Resistance",
+    "cost": {
+      "rare_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-psychic-resistance",
+    "name": "Potion of Psychic Resistance",
+    "cost": {
+      "rare_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-radiant-resistance",
+    "name": "Potion of Radiant Resistance",
+    "cost": {
+      "rare_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-thunder-resistance",
+    "name": "Potion of Thunder Resistance",
+    "cost": {
+      "rare_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-speed",
+    "name": "Potion of Speed",
+    "cost": {
+      "rare_curative": 1,
+      "rare_poisonous": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-flying",
+    "name": "Potion of Flying",
+    "cost": {
+      "common_curative": 2,
+      "exotic_reactive": 1
+    }
+  },
+  {
+    "id": "potion-of-clairvoyance",
+    "name": "Potion of Clairvoyance",
+    "cost": {
+      "rare_poisonous": 1,
+      "rare_reactive": 2
+    }
+  },
+  {
+    "id": "antitoxin",
+    "name": "Antitoxin",
+    "cost": {
+      "common_curative": 2,
+      "common_poisonous": 1
+    }
+  },
+  {
+    "id": "acid",
+    "name": "Acid",
+    "cost": {
+      "common_poisonous": 2,
+      "common_reactive": 1
+    }
+  },
+  {
+    "id": "basic-poison",
+    "name": "Basic Poison",
+    "cost": {
+      "common_poisonous": 3
+    }
+  },
+  {
+    "id": "truth-serum",
+    "name": "Truth Serum",
+    "cost": {
+      "common_curative": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "assassins-blood",
+    "name": "Assassins Blood",
+    "cost": {
+      "rare_poisonous": 1,
+      "common_reactive": 1
+    }
+  },
+  {
+    "id": "burnt-othur-fumes",
+    "name": "Burnt Othur Fumes",
+    "cost": {
+      "exotic_poisonous": 1,
+      "common_reactive": 1
+    }
+  },
+  {
+    "id": "carrion-crawler-mucus",
+    "name": "Carrion Crawler Mucus",
+    "cost": {
+      "rare_poisonous": 1,
+      "common_reactive": 2
+    }
+  },
+  {
+    "id": "drow-poison",
+    "name": "Drow Poison",
+    "cost": {
+      "rare_poisonous": 1,
+      "common_reactive": 2
+    }
+  },
+  {
+    "id": "essence-of-ether",
+    "name": "Essence of Ether",
+    "cost": {
+      "rare_poisonous": 2,
+      "common_reactive": 1
+    }
+  },
+  {
+    "id": "malice",
+    "name": "Malice",
+    "cost": {
+      "rare_poisonous": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "midnight-tears",
+    "name": "Midnight Tears",
+    "cost": {
+      "exotic_poisonous": 3,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "oil-of-taggit",
+    "name": "Oil of Taggit",
+    "cost": {
+      "rare_poisonous": 2,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "pale-tincture",
+    "name": "Pale Tincture",
+    "cost": {
+      "rare_poisonous": 1,
+      "rare_reactive": 2
+    }
+  },
+  {
+    "id": "purple-worm-poison",
+    "name": "Purple Worm Poison",
+    "cost": {
+      "exotic_poisonous": 3,
+      "exotic_reactive": 1
+    }
+  },
+  {
+    "id": "torpor",
+    "name": "Torpor",
+    "cost": {
+      "exotic_poisonous": 1,
+      "rare_reactive": 1
+    }
+  },
+  {
+    "id": "wyvern-poison",
+    "name": "Wyvern Poison",
+    "cost": {
+      "exotic_poisonous": 2,
+      "exotic_reactive": 1
+    }
+  }
+]

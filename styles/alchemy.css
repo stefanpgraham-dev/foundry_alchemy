@@ -1,0 +1,22 @@
+.alchemy-workbench .dialog-content {min-width:0;max-width:100%;overflow-x:hidden}
+.awb{box-sizing:border-box;min-width:0;width:100%;max-width:100%;font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.awb h3{margin:0 0 8px;font-size:15px}
+.awb p{margin:5px 0 9px}
+.awb .awb-note{color:var(--color-text-secondary,#777);font-size:12px;line-height:1.45;white-space:normal}
+.awb-field{display:flex;flex-direction:column;gap:4px;margin:0 0 11px;min-width:0;font-weight:600}
+.awb-field select,.awb-field input{width:100%;max-width:100%;min-width:0;box-sizing:border-box;font-weight:normal;white-space:normal}
+.awb-rows{display:flex;flex-direction:column;gap:5px;min-width:0;max-height:58vh;overflow-y:auto;overflow-x:hidden}
+.awb-mode,.awb-check{display:flex;align-items:flex-start;gap:9px;padding:9px;border:1px solid var(--color-border-light-2,#8d8476);border-radius:5px;cursor:pointer;min-width:0;box-sizing:border-box}
+.awb-mode input,.awb-check input{flex:0 0 auto;align-self:flex-start;margin-top:3px}
+.awb-mode span{min-width:0;flex:1}
+.awb-mode small{display:block;color:var(--color-text-secondary,#777);margin-top:2px}
+.awb details{margin:8px 0;padding:8px;max-width:100%;box-sizing:border-box}
+.awb details .awb-rows{margin-top:6px}
+.awb-mapping-scroll{display:flex;flex-direction:column;max-height:58vh;overflow-y:auto;overflow-x:hidden;gap:7px}
+.awb-mapping{display:grid;grid-template-columns:minmax(135px,1fr) minmax(150px,2fr);gap:9px;align-items:center;box-sizing:border-box;min-width:0;max-width:100%}
+.awb-mapping strong{font-size:12px;overflow-wrap:anywhere}
+.awb-mapping input{width:100%;min-width:0;box-sizing:border-box;font-size:12px}
+.awb-chat{padding:4px;overflow-wrap:anywhere}
+.awb-chat h3{margin:0 0 6px}
+.awb-header-button{flex:0 0 auto;min-width:0;max-width:95px;padding:2px 5px;font-size:11px;white-space:nowrap}
+@media(max-width:540px){.awb-mapping{grid-template-columns:1fr}.awb-header-button{font-size:10px;max-width:72px}}

@@ -1,0 +1,60 @@
+name: Test and Publish Foundry Module
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run smoke tests
+        run: npm test
+      - name: Build Foundry manifest and installable ZIP
+        shell: bash
+        run: |
+          mkdir -p dist/alchemy-workbench
+          cp module.json README.md dist/alchemy-workbench/
+          cp -R data scripts styles dist/alchemy-workbench/
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const p='dist/alchemy-workbench/module.json';
+          const data=JSON.parse(fs.readFileSync(p, 'utf8'));
+          const repo=process.env.GITHUB_REPOSITORY;
+          const tag=`v${data.version}`;
+          data.url=`https://github.com/${repo}`;
+          data.manifest=`https://github.com/${repo}/releases/latest/download/module.json`;
+          data.download=`https://github.com/${repo}/releases/download/${tag}/alchemy-workbench.zip`;
+          fs.writeFileSync(p, JSON.stringify(data, null, 2)+'\n');
+          JS
+          cp dist/alchemy-workbench/module.json dist/module.json
+          (cd dist && zip -qr ../alchemy-workbench.zip alchemy-workbench)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alchemy-workbench-build
+          path: |
+            alchemy-workbench.zip
+            dist/module.json
+      - name: Publish versioned GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          VERSION="$(node -p "JSON.parse(require('fs').readFileSync('module.json')).version")"
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" alchemy-workbench.zip dist/module.json --clobber
+          else
+            gh release create "$TAG" alchemy-workbench.zip dist/module.json \
+              --target "$GITHUB_SHA" --title "Alchemy Workbench $TAG" \
+              --notes "Foundry VTT v14 / D&D 5e alchemy crafting module. First build: test in a backup world before live use." \
+              --latest
+          fi

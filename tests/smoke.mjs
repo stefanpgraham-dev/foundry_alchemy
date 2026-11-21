@@ -1,0 +1,240 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+import {TIERS,COLOURS,KEYS,recipeTier,DC,HOURS,requirements,planRecipe,planRefine,percentageYield,chanceSucceeds,assertQty,classifyHerbs} from '../scripts/engine.mjs';
+import {getQty,planExtract,planDowngrade,applyInventory} from '../scripts/inventory.mjs';
+const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const recipes=JSON.parse(fs.readFileSync(path.join(root,'data/recipes.json'),'utf8'));
+const herbs=JSON.parse(fs.readFileSync(path.join(root,'data/herbs.json'),'utf8'));
+const manifest=JSON.parse(fs.readFileSync(path.join(root,'module.json'),'utf8'));
+const recipe=name=>recipes.find(x=>x.name===name);
+let checks=0;const check=(condition,message)=>{checks++;assert.ok(condition,message);};
+check(manifest.id==='alchemy-workbench'&&manifest.compatibility.minimum==='14','valid v14 module');
+check(manifest.socket===true&&manifest.esmodules.includes('scripts/module.mjs'),'socket and script registered');
+check(manifest.relationships.systems[0].id==='dnd5e','D&D 5e required');
+check(recipes.length===44 && new Set(recipes.map(x=>x.id)).size===44,'44 unique potion recipes');
+check(herbs.length===43 && new Set(herbs.map(x=>x.id)).size===43,'43 unique herbs');
+check(KEYS.length===9 && TIERS.length===3 && COLOURS.length===3,'nine reagent kinds');
+for(const r of recipes){
+ check(Object.keys(r.cost).every(k=>KEYS.includes(k)&&Number.isSafeInteger(r.cost[k])&&r.cost[k]>0),`valid recipe ${r.name}`);
+ check(DC[recipeTier(r)]&&HOURS[recipeTier(r)],`tier for ${r.name}`);
+}
+for(const h of herbs)check(h.reagents.length>0&&h.reagents.every(k=>KEYS.includes(k)),`herb ${h.name} has valid properties`);
+check(classifyHerbs(herbs).length===3,'three herb rarity anomalies');
+check(recipe('Potion of Healing').cost.common_curative===3,'Healing recipe 3 Common Curative');
+check(recipe('Potion of Supreme Healing').cost.exotic_curative===3,'Supreme Healing 3 Exotic Curative');
+check(recipe('Potion of Speed').cost.rare_poisonous===1&&recipe('Potion of Speed').cost.rare_reactive===1,'Speed formula');
+check(recipe('Potion of Flying').cost.exotic_reactive===1,'Flying formula');
+check(recipe('Purple Worm Poison').cost.exotic_poisonous===3,'Purple Worm Poison formula');
+check(Object.keys(requirements(recipe('Potion of Healing'),5)).length===1&&requirements(recipe('Potion of Healing'),5).common_curative===15,'multiply batch recipe');
+check(recipeTier(recipe('Potion of Flying'))==='exotic','tier determined by highest recipe reagent');
+check(HOURS[recipeTier(recipe('Potion of Healing'))]===2,'batch time remains recipe time');
+check(planRefine('exotic_curative',1,'rare').quantity===3,'exotic to 3 rare');
+check(planRefine('exotic_curative',1,'common').quantity===9,'exotic to 9 common');
+check(planRefine('rare_reactive',2,'common').quantity===6,'rare to 3 common');
+assert.throws(()=>planRefine('rare_reactive',1,'exotic'));
+assert.throws(()=>planRefine('common_curative',1,'rare'));
+assert.throws(()=>assertQty(0));
+assert.throws(()=>assertQty(1.25));
+const inv=(...args)=>args.map(([id,key,quantity])=>({id,key,quantity}));
+let plan=planRecipe(recipe('Potion of Healing'),1,inv(['e','exotic_curative',1]));
+check(JSON.stringify(plan.consume)===JSON.stringify([{id:'e',quantity:1}]),'one exotic consumed');
+check(plan.return.rare_curative===2,'break exotic to rare and return 2 rare');
+check(!plan.return.common_curative,'no common waste');
+plan=planRecipe(recipe('Potion of Healing'),1,inv(['e','exotic_curative',1]),{change:'common'});
+check(plan.return.common_curative===6,'optional lower-tier change');
+plan=planRecipe(recipe('Potion of Healing'),1,inv(['r','rare_curative',1]));
+check(plan.consume[0].id==='r'&&Object.keys(plan.return).length===0,'rare exactly covers 3 common');
+plan=planRecipe(recipe('Potion of Healing'),2,inv(['c','common_curative',3],['r','rare_curative',1]));
+check(plan.consume.length===2&&plan.consume.reduce((n,v)=>n+v.quantity,0)===4,'consume exact common and rare');
+plan=planRecipe(recipe('Potion of Healing'),1,inv(['c','common_curative',5]));
+check(plan.consume[0].quantity===3&&Object.keys(plan.return).length===0,'consume only 3 of 5 common');
+assert.throws(()=>planRecipe(recipe('Potion of Healing'),1,inv(['p','exotic_poisonous',9])),'cross-colour substitution forbidden');
+assert.throws(()=>planRecipe(recipe('Potion of Greater Healing'),1,inv(['c','common_curative',100])),'cannot upgrade 3 common to rare');
+// Substituting an exotic for both a rare and common requirement cannot reuse the same unit.
+const mixed={id:'mixed',name:'Mixed',cost:{rare_curative:1,common_curative:1}};
+plan=planRecipe(mixed,1,inv(['e','exotic_curative',1]));
+check(plan.consume.length===1 && plan.return.rare_curative===1 && plan.return.common_curative===2,'single exotic split across rare/common with exact change');
+for(const qty of [1,2,5,100])for(const pct of [0,10,30,70,100,150,350,800]){
+ const y=percentageYield(qty,pct);
+ check(y.guaranteed*100+y.fractional===qty*pct,`conserves expected yield ${qty} @ ${pct}%`);
+ check(y.fractional>=0&&y.fractional<100,'at most one fractional d100');
+}
+check(percentageYield(1,400).guaranteed===4,'400% gives four critical bonus potions, not capped');
+check(percentageYield(5,70).guaranteed===3&&percentageYield(5,70).fractional===50,'5 at 70% => 3 + 50% chance');
+check(chanceSucceeds(43,50)===true&&chanceSucceeds(51,50)===false,'d100 equal or below');
+check(chanceSucceeds(100,100)===true,'100% guaranteed');
+// Show virtual d40 mapping is uniform and bounded 1–40.
+let combinations=[];for(let d10=1;d10<=10;d10++)for(let d4=1;d4<=4;d4++)combinations.push((d10-1)*4+d4);
+check(new Set(combinations).size===40&&Math.min(...combinations)===1&&Math.max(...combinations)===40,'virtual d40 is exactly uniform');
+
+// Mock actor Item operations (no Foundry runtime required) to verify real inventory changes and rollback.
+let serial=0;
+class Item {
+ constructor(id,name,key,quantity){this.id=id;this.name=name;this.system={quantity};this.flags={core:{sourceId:`Item.${id}`},'alchemy-workbench':{category:key,sourceUuid:`Item.${id}`}};this.uuid=`Actor.test.Item.${id}`;}
+ getFlag(ns,k){return this.flags[ns]?.[k];}
+ toObject(){return {name:this.name,type:'consumable',system:{quantity:this.system.quantity},flags:structuredClone(this.flags)};}
+}
+class Actor {
+ constructor(...items){this.id='test';this.name='Test';this.system={tools:{alchemist:{total:0}},abilities:{int:{mod:0}},attributes:{prof:2}};this.items={contents:items,get(id){return this.contents.find(x=>x.id===id)},*[Symbol.iterator](){yield* this.contents;}};this.failCreation=false;}
+ async updateEmbeddedDocuments(type,updates){for(const u of updates){const item=this.items.get(u._id);if(!item)throw new Error('Bad item ID');item.system.quantity=u['system.quantity'];}return updates;}
+ async createEmbeddedDocuments(type,list){if(this.failCreation)throw Error('Simulated create failed');const docs=list.map(s=>{const item=new Item(`new${++serial}`,s.name,s.flags?.['alchemy-workbench']?.category,s.system?.quantity||1);item.flags=s.flags;this.items.contents.push(item);return item;});return docs;}
+ async deleteEmbeddedDocuments(type,ids){this.items.contents=this.items.contents.filter(x=>!ids.includes(x.id));}
+}
+const templates={
+ 'Item.common_curative':new Item('common_curative','Common Curative','common_curative',1),
+ 'Item.rare_curative':new Item('rare_curative','Rare Curative','rare_curative',1),
+ 'Item.exotic_curative':new Item('exotic_curative','Exotic Curative','exotic_curative',1),
+};
+globalThis.fromUuid=async id=>Object.assign(templates[id]||null,{documentName:'Item'});
+globalThis.game={items:{get:id=>templates[`Item.${id}`]||null},settings:{get:()=>({})}};
+const map={reagents:Object.fromEntries(Object.keys(templates).map(x=>[x.replace('Item.',''),x])),outputs:{}};
+const act=new Actor(new Item('e','Exotic Curative','exotic_curative',2));
+const p=planRecipe(recipe('Potion of Healing'),1,inv(['e','exotic_curative',2]));
+await applyInventory(act,p.consume,[...Object.entries(p.return).map(([id,quantity])=>({kind:'reagent',id,quantity}))],map);
+check(getQty(act.items.get('e'))===1,'one exotic reagent consumed, second remains');
+check(act.items.contents.some(x=>x.name==='Rare Curative'&&getQty(x)===2),'two rare returned to actor inventory');
+const rollback=new Actor(new Item('e','Exotic Curative','exotic_curative',1));rollback.failCreation=true;
+await assert.rejects(()=>applyInventory(rollback,[{id:'e',quantity:1}],[{kind:'reagent',id:'rare_curative',quantity:3}],map));
+check(getQty(rollback.items.get('e'))===1,'on create failure original item restored');
+check(rollback.items.contents.length===1,'no duplicate items after rollback');
+console.log(`Alchemy Workbench smoke tests passed: ${checks} assertions, 44 recipes and 43 herbs.`);
+// Check that Foundry's init/ready hooks can register module settings and load both catalogues.
+const hooks={};
+globalThis.Hooks={once(name,fn){hooks[name]=fn;},on(){}};
+const moduleEntry={};const registered=[];let socketChannel='',socketHandler;
+globalThis.game={
+ modules:new Map([['alchemy-workbench',moduleEntry]]),
+ settings:{register:(id,key,config)=>registered.push({id,key,config})},
+ system:{id:'dnd5e'},
+ socket:{on:(id,fn)=>{socketChannel=id;socketHandler=fn;}},
+ items:{contents:[],get:id=>templates[`Item.${id}`]||null}
+};
+globalThis.ui={notifications:{info:()=>{},warn:()=>{},error:e=>{throw Error(e)}}};
+const fetchNative=globalThis.fetch;
+globalThis.fetch=async url=>{
+ const file=url.endsWith('recipes.json')?'recipes.json':url.endsWith('herbs.json')?'herbs.json':null;
+ return file?{ok:true,json:async()=>JSON.parse(fs.readFileSync(path.join(root,'data',file),'utf8'))}:{ok:false};
+};
+await import('../scripts/module.mjs');
+check(typeof hooks.init==='function'&&typeof hooks.ready==='function','Foundry startup hooks registered');
+await hooks.init();
+check(registered.length===2,'world-scoped configuration and pending settings registered');
+check(typeof moduleEntry.api.open==='function'&&typeof moduleEntry.api.setup==='function','UI API available');
+await hooks.ready();
+check(moduleEntry.api.getRecipes().length===44&&moduleEntry.api.getHerbs().length===43,'catalogues load in ready hook');
+check(socketChannel==='module.alchemy-workbench','module socket event registered');
+globalThis.fetch=fetchNative;
+console.log('Foundry startup mock passed.');
+
+// Exercise the player-to-GM command path with a synthetic Foundry socket and Roll interface.
+let mappings={reagents:{common_curative:'Item.common_curative'},herbs:{},outputs:{}};
+let pendingRecords=[];
+const gmUser={id:'gm',active:true,isGM:true},playerUser={id:'player',active:true,isGM:false};
+const actorGame=new Actor(new Item('c','Common Curative','common_curative',6));
+actorGame.testUserPermission=()=>true;
+const responses=[];
+let rollValues=[],postedRolls=[];
+globalThis.Roll=class{
+ constructor(formula){this.formula=formula;this.total=null;this.dice=[];}
+ async evaluate(){
+  if(!rollValues.length)throw Error('Unexpected dice roll: '+this.formula);
+  const value=rollValues.shift();
+  if(this.formula.includes('1d20')){
+   this.dice=[{faces:20,results:[{result:value}]}];
+   const m=this.formula.match(/1d20\s*([+-])\s*(\d+)/); const bonus=m?(m[1]==='-'?-1:1)*Number(m[2]):0;
+   this.total=value+bonus;
+  }else this.total=value;
+  return this;
+ }
+ async toMessage(data){postedRolls.push({formula:this.formula,flavor:data.flavor,total:this.total});}
+};
+globalThis.ChatMessage={getSpeaker:()=>({alias:'Test Actor'}),create:async()=>({})};
+globalThis.foundry={utils:{escapeHTML:s=>String(s),randomID:()=>`job-${++serial}`}};
+const activeUsers=[gmUser,playerUser];
+game.user=gmUser;
+game.users={filter:fn=>activeUsers.filter(fn),get:id=>activeUsers.find(x=>x.id===id)};
+game.actors={get:id=>id==='test'?actorGame:null};
+game.socket.emit=(channel,p)=>{responses.push(p)};
+game.settings.get=(id,key)=>key==='mappings'?mappings:pendingRecords;
+game.settings.set=async(id,key,value)=>{if(key==='pending')pendingRecords=value;else if(key==='mappings')mappings=value;return value;};
+function eventuallyResponse(){
+ return new Promise((resolve,reject)=>{const started=Date.now();const poll=()=>{if(responses.length)return resolve(responses.shift());if(Date.now()-started>2000)return reject(Error('No response'));setTimeout(poll,1);};poll();});
+}
+rollValues=[15];
+socketHandler({type:'request',nonce:'success',mode:'brew',actorId:'test',recipeId:'potion-of-healing',batch:2,selectedIds:['c'],change:'highest',doublePass:'extra'},'player');
+let reply=await eventuallyResponse();
+check(reply.ok===true,'authenticated player can request a brew from active GM');
+check(postedRolls.length===1&&postedRolls[0].formula.startsWith('1d20'),'successful brew sends one standard Roll to chat (Dice So Nice)');
+check(actorGame.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===2),'successful brew awards 2 potion items');
+check(!actorGame.items.get('c'),'initial two-potion batch consumed 6 curatives');
+// Simulate a failed brew with both follow-up dice succeeding: ingredients consumed, job pending.
+const actorPending=new Actor(new Item('p','Common Curative','common_curative',3));
+actorPending.testUserPermission=()=>true;
+game.actors.get=id=>id==='test'?actorPending:null;
+postedRolls=[];
+rollValues=[2,18,19];
+socketHandler({type:'request',nonce:'pending',mode:'brew',actorId:'test',recipeId:'potion-of-healing',batch:1,selectedIds:['p'],change:'highest',doublePass:'extra'},'player');
+reply=await eventuallyResponse();
+check(reply.ok===true,'double-success after failure enters extra-time branch');
+check(postedRolls.length===3,'initial and two independent d20s sent to chat');
+check(pendingRecords.length===1&&pendingRecords[0].status==='ready','pending batch recorded and ready for GM approval');
+check(!actorPending.items.get('p'),'pending batch ingredients are consumed exactly once');
+socketHandler({type:'request',nonce:'finish',mode:'finish',actorId:'test',pendingId:pendingRecords[0].id},'gm');
+await new Promise(resolve=>setTimeout(resolve,20));
+check(pendingRecords.length===0,'GM completes pending batch and clears it');
+check(actorPending.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===1),'pending batch completion awards one potion');
+console.log('Multiplayer request / brewing / pending-completion mocks passed.');
+// Critical bonus >100%: 5 base potions, 2 passing follow-up checks, 210% bonus
+// => 10 guaranteed bonus + one 50% roll. A percentile of 40 awards an 11th bonus.
+const actorCritical=new Actor(new Item('crit','Common Curative','common_curative',15));
+actorCritical.testUserPermission=()=>true;
+game.actors.get=id=>id==='test'?actorCritical:null;
+postedRolls=[];
+rollValues=[20,15,15,21,40];
+socketHandler({type:'request',nonce:'critical',mode:'brew',actorId:'test',recipeId:'potion-of-healing',batch:5,selectedIds:['crit'],change:'highest',doublePass:'immediate'},'player');
+reply=await eventuallyResponse();
+check(reply.ok===true,'critical roll resolved by GM');
+check(postedRolls.length===5&&postedRolls.at(-1).formula==='1d100','all critical follow-up, bonus, percentile dice sent to chat');
+check(actorCritical.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===16),'critical yield uses integer bonus plus one percentile result above 100%');
+// One failure-follow-up success: 50% of three potions gives one guaranteed, then 50% chance.
+const actorPartial=new Actor(new Item('partial','Common Curative','common_curative',9));
+actorPartial.testUserPermission=()=>true;
+game.actors.get=id=>id==='test'?actorPartial:null;
+postedRolls=[];
+rollValues=[3,18,2,5,70];
+socketHandler({type:'request',nonce:'partial',mode:'brew',actorId:'test',recipeId:'potion-of-healing',batch:3,selectedIds:['partial'],change:'highest',doublePass:'extra'},'player');
+reply=await eventuallyResponse();
+check(reply.ok===true&&postedRolls.length===5,'failure then one passing follow-up uses d8 and d100');
+check(actorPartial.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===1),'partial yield 1.5 rounded by d100 70 => one potion');
+check(!pendingRecords.length,'single follow-up success does not create pending job');
+console.log('Critical and partial brewing mocked workflows passed.');
+// Real socket branches for herb extraction and reagent downgrade (no rolls).
+mappings.herbs={'cave-moss':'Item.CaveMoss'};
+mappings.reagents.rare_curative='Item.rare_curative';
+const actorHerb=new Actor(new Item('herb','Cave Moss','cave-moss',3));
+actorHerb.testUserPermission=()=>true;
+game.actors.get=id=>id==='test'?actorHerb:null;
+postedRolls=[];
+socketHandler({type:'request',nonce:'extract',mode:'extract',actorId:'test',herbId:'cave-moss',itemId:'herb',quantity:2,reagentKey:'common_curative'},'player');
+reply=await eventuallyResponse();
+check(reply.ok===true,'herb extraction socket operation accepted');
+check(getQty(actorHerb.items.get('herb'))===1,'two herbs consumed');
+check(actorHerb.items.contents.some(x=>x.name==='Common Curative'&&getQty(x)===2),'two reagent items awarded');
+check(postedRolls.length===0,'herb extraction does not roll dice');
+const actorRefine=new Actor(new Item('rare','Rare Curative','rare_curative',2));
+actorRefine.testUserPermission=()=>true;
+game.actors.get=id=>id==='test'?actorRefine:null;
+postedRolls=[];
+socketHandler({type:'request',nonce:'refine',mode:'refine',actorId:'test',itemId:'rare',quantity:1,targetTier:'common'},'player');
+reply=await eventuallyResponse();
+check(reply.ok===true,'downgrade socket operation accepted');
+check(getQty(actorRefine.items.get('rare'))===1,'only one of two Rare consumed');
+check(actorRefine.items.contents.some(x=>x.name==='Common Curative'&&getQty(x)===3),'three Common returned by downgrade');
+check(postedRolls.length===0,'downgrading does not roll dice');
+actorRefine.testUserPermission=u=>u.isGM;
+socketHandler({type:'request',nonce:'unauthorised',mode:'refine',actorId:'test',itemId:'rare',quantity:1,targetTier:'common'},'player');
+reply=await eventuallyResponse();
+check(reply.ok===false,'unauthorised player cannot modify another character inventory');
+console.log('Herb, downgrade and permission mocks passed.');
