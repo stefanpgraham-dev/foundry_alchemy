@@ -1,6 +1,7 @@
 import {KEYS, TIERS, COLOURS, DC, HOURS,recipeTier,percentageYield,chanceSucceeds,classifyHerbs,assertQty} from './engine.mjs';
 import {MID,getQty,normal,setting,findMatchedInventory,findHerbs,markActorInventory,planBrew,planExtract,planDowngrade,applyInventory,changeOutputs,template} from './inventory.mjs';
 import {AlchemyWorkbench} from './workbench.mjs';
+import {brewingEligibility,rollAlchemyToolCheck,naturalD20Result} from './eligibility.mjs';
 
 const DIALOG=()=>foundry.applications.api.DialogV2;
 const esc=v=>foundry.utils.escapeHTML(String(v??''));
@@ -38,7 +39,7 @@ async function selectActor(){
 function workbench(actor){
  return new AlchemyWorkbench(actor,{
   recipes, herbs, mappings:setting, submit:submitAction,
-  saveMappings, pending:pendingDialog
+  saveMappings, pending:pendingDialog, brewingEligibility
  });
 }
 async function hub({tab='brew'}={}){
@@ -186,27 +187,11 @@ async function roll(formula,flavor,actor){
  await r.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`Alchemy · ${flavor}`});
  return r;
 }
-function toolModifier(actor){
- const t=actor.system.tools?.alchemist||{};
- const ability=Number(actor.system.abilities?.int?.mod)||0;
- const prof=Number(actor.system.attributes?.prof)||0;
- const value=Number(t.value??t.profMultiplier??0);
- // Use system-prepared total if present (to retain tool-related bonuses).
- if(Number.isFinite(Number(t.total)) && t.total!==undefined && t.total!==null)return Number(t.total);
- const multiplier=Number.isFinite(value)?value:0;
- const staticBonus=Number(t.bonus??0);
- return ability+Math.floor(prof*multiplier)+(Number.isFinite(staticBonus)?staticBonus:0);
-}
-function firstDie(rollObj){
- const term=rollObj.dice?.find(d=>Number(d.faces)===20);
- return Number(term?.results?.[0]?.result||0);
-}
 async function fractionalRoll(yieldData,actor,label){
  if(!yieldData.fractional)return yieldData.guaranteed;
  const r=await roll('1d100',`${label} · ${yieldData.fractional}% chance of one more potion`,actor);
  return yieldData.guaranteed+Number(chanceSucceeds(r.total,yieldData.fractional));
 }
-function checkFormula(mod){return `1d20 ${mod<0?`- ${-mod}`:`+ ${mod}`}`;}
 async function choiceDialog(actor){
  const answer=await DIALOG().wait({window:{title:'Alchemy — Both Follow-up Checks Succeeded'},classes:[MID],content:`<div class="awb"><h3>${esc(actor.name)}: choose how to finish brewing</h3><p>Both follow-up checks succeeded after the initial failed check.</p><p><strong>Option A:</strong> Complete the full batch after 50% additional brewing time (GM approves completion later).</p><p><strong>Option B:</strong> Resolve immediately using 1d8 × 10% of the batch, with a d100 for any remainder.</p></div>`,buttons:[{action:'extra',label:'Full batch · +50% time',default:true,callback:()=> 'extra'},{action:'immediate',label:'Partial batch · now',callback:()=> 'immediate'}],rejectClose:false});
  return answer==='immediate'?'immediate':'extra';
@@ -221,12 +206,12 @@ async function requestFailureChoice(actor,senderId){
  });
 }
 async function brewOutcome(actor,recipe,batch,{senderId,doublePass}={}){
- const tier=recipeTier(recipe),dc=DC[tier],mod=toolModifier(actor);
- const initial=await roll(checkFormula(mod),`Intelligence (Alchemist’s Supplies) · DC ${dc}`,actor);
- const natural=firstDie(initial);
+ const tier=recipeTier(recipe),dc=DC[tier];
+ const initial=await rollAlchemyToolCheck(actor,dc);
+ const natural=naturalD20Result(initial);
  if(natural===20){
-  const a=await roll(checkFormula(mod),'Critical bonus — first d20',actor);
-  const b=await roll(checkFormula(mod),'Critical bonus — second d20',actor);
+  const a=await rollAlchemyToolCheck(actor,dc,{followUp:true});
+  const b=await rollAlchemyToolCheck(actor,dc,{followUp:true});
   const passes=Number(a.total>=dc)+Number(b.total>=dc);
   let bonusPct=0;
   if(passes){
@@ -239,8 +224,8 @@ async function brewOutcome(actor,recipe,batch,{senderId,doublePass}={}){
   return {status:'critical',produced:batch+bonus,bonus,bonusPct,passes};
  }
  if(initial.total>=dc)return {status:'success',produced:batch};
- const a=await roll(checkFormula(mod),'Failure follow-up — first d20',actor);
- const b=await roll(checkFormula(mod),'Failure follow-up — second d20',actor);
+ const a=await rollAlchemyToolCheck(actor,dc,{followUp:true});
+ const b=await rollAlchemyToolCheck(actor,dc,{followUp:true});
  const passes=Number(a.total>=dc)+Number(b.total>=dc);
  if(passes===0)return {status:'lost',produced:0,passes};
  if(passes===2){
@@ -312,6 +297,8 @@ async function performAction(p,senderId){
  if(!recipe)throw new Error('Unrecognised recipe.');
  if((p.doublePass!==undefined&&!['immediate','extra'].includes(p.doublePass))||!['highest','common'].includes(p.change))throw new Error('Invalid brewing options.');
  if(!Array.isArray(p.selectedIds)||p.selectedIds.length>200||p.selectedIds.some(x=>typeof x!=='string'))throw new Error('Invalid ingredient selection.');
+ const eligible=brewingEligibility(actor);
+ if(!eligible.ok)throw new Error(eligible.errors.join(' '));
  const plan=planBrew(actor,recipe,batch,map,p.selectedIds,p.change);
  // Verify all change output templates before taking any dice or inventory changes.
  for(const key of Object.keys(plan.return))if(!await template(map.reagents?.[key]))throw new Error(`Reagent change item is unmapped: ${key}`);

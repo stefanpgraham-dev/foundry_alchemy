@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.2.0 — visual workbench and inventory-recognition update.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.2.1 — visual workbench and inventory-recognition update.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -51,3 +51,10 @@ The authenticated active GM authorises actor ownership and ingredients, preventi
 
 - [Alchemy recipes and mechanics](https://app.notion.com/p/2ed1a67cccff41889725d18909c75c35)
 - [Herb definitions](https://app.notion.com/p/402e4aae6fd542f5b2db533bd07a385e)
+
+## v0.2.1 – tool checks and GM mapping usability
+
+- **Prerequisites:** Potion brewing requires an Alchemist's Supplies item in the actor inventory and proficiency (or expertise) with Alchemist's Supplies. Missing requirements are displayed in the workbench, and GM-side validation also rejects the transaction before rolling or consuming ingredients. Herb preparation and reagent downgrading still need no tools or proficiency.
+- **System-integrated checks:** Initial brewing and both independent follow-up rolls use the D&D 5e `Actor#rollToolCheck` API with Intelligence, the `alchemist` tool identifier and the carried tool item. The native check incorporates system bonuses, active effects and Dice So Nice chat rendering. Two follow-up checks each suppress advantage/disadvantage to preserve the explicitly agreed independent-d20 mechanic; the initial roll retains applicable roll-mode effects. As before, dice are rolled on the GM's client and posted to chat.
+- **GM mapping:** Re-renders following selection, drag-and-drop or saving preserve scroll positions and, for an actively edited mapping input, keyboard focus and text-selection position.
+- **Safety:** Back up the world before in-world testing. Foundry v14 / dnd5e v6.1 runtime UI and multiplayer behaviour have not been verified in a live Foundry world.

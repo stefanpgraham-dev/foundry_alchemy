@@ -1,5 +1,6 @@
 import {KEYS,TIERS,COLOURS,DC,HOURS,recipeTier,maximumCraftableBatch,availableRefinementTargets,planRefine} from './engine.mjs';
 import {getQty,findMatchedInventory,findHerbs,inventoryAudit,planBrew,setting,normal} from './inventory.mjs';
+import {captureWorkbenchViewport,restoreWorkbenchViewport} from './viewport.mjs';
 
 const esc=value=>foundry.utils.escapeHTML(String(value??''));
 const label=key=>String(key).replaceAll('_',' ').replace(/\b\w/g,x=>x.toUpperCase());
@@ -33,7 +34,12 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     this.busy=false;this.notice=null;
   }
   async _renderHTML(){return this._layout();}
-  _replaceHTML(html,content){content.innerHTML=html;}
+  _replaceHTML(html,content){
+    const editing=this.element?.ownerDocument?.activeElement ?? null;
+    const state=captureWorkbenchViewport(content,editing);
+    content.innerHTML=html;
+    restoreWorkbenchViewport(content,state);
+  }
   _onRender(context,options){
     super._onRender(context,options);
     const root=this.element;
@@ -96,13 +102,15 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
         <span class="awb-max">${max?`×${max}`:'Unavailable'}</span></button>`;
     }).join('');
     const recipe=chosen?.recipe,tier=recipe?recipeTier(recipe):'common';
+    const eligibility=this.services.brewingEligibility(this.actor);
+    const accessNotice=eligibility.ok?'':message(eligibility.errors.join(' '),'warn');
     return `<div class="awb-brew-layout">
       <section class="awb-panel awb-browser"><div class="awb-panel-heading"><h2>Formulae</h2>${tag(`${eligible.length} craftable`,'awb-available')}</div>
         <label class="awb-search-wrap"><i class="fas fa-search" aria-hidden="true"></i><input data-search="recipes" placeholder="Search potions and poisons…" value="${esc(this.search)}"></label>
         <label class="awb-switch"><input type="checkbox" data-show-unavailable ${this.showUnavailable?'checked':''}><span>Show recipes missing ingredients</span></label>
         <div class="awb-recipe-list">${cards||'<p class="awb-empty">No recipes match your search.</p>'}</div>
       </section>
-      <section class="awb-panel awb-detail">${recipe?`
+      <section class="awb-panel awb-detail">${accessNotice}${recipe?`
         <div class="awb-detail-head">${icon(this._templateImage(mapping.outputs?.[recipe.id]),recipe.name,'awb-featured')}<div><p class="awb-eyebrow">${esc(titleCase(tier))} formula</p><h2>${esc(recipe.name)}</h2><div class="awb-pills">${tag(`DC ${DC[tier]}`)}${tag(`${HOURS[tier]} hours`)}${tag(`Max ${chosen.max}`)}</div></div></div>
         <h3>Ingredients per potion</h3><div class="awb-material-list">${Object.entries(recipe.cost).map(([k,q])=>marker(k,q)).join('')}</div>
         <div class="awb-batch-control"><div><strong>Batch size</strong><small>One brew check · same preparation time</small></div><div class="awb-stepper"><button type="button" data-action="batch-minus" ${this.batch<=1?'disabled':''}>−</button><output>${this.batch}</output><button type="button" data-action="batch-plus" ${this.batch>=chosen.max?'disabled':''}>+</button></div></div>
@@ -112,7 +120,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
           <label class="awb-field"><span>Change denomination</span><select data-change><option value="highest" ${this.change==='highest'?'selected':''}>Highest available tier</option><option value="common" ${this.change==='common'?'selected':''}>Common reagents</option></select></label>
           <div class="awb-ingredient-picks">${this._inventory().map(x=>`<label><input type="checkbox" data-stack="${esc(x.id)}" ${this.selectedIds===null||this.selectedIds.includes(x.id)?'checked':''}> ${esc(x.item.name)} ×${x.quantity}</label>`).join('')}</div>
         </details>
-        <div class="awb-bottom"><div>${small('Reagents are consumed after the GM resolves the brew.')}<br>${small('Critical and partial yields use animated dice.')}</div><button class="awb-primary" type="button" data-action="brew" ${this.busy||!plan?'disabled':''}><i class="fas fa-flask"></i> Brew ${this.batch} potion${this.batch===1?'':'s'}</button></div>
+        <div class="awb-bottom"><div>${small('Reagents are consumed after the GM resolves the brew.')}<br>${small('Critical and partial yields use animated dice.')}</div><button class="awb-primary" type="button" data-action="brew" ${this.busy||!plan||!eligibility.ok?'disabled':''}><i class="fas fa-flask"></i> Brew ${this.batch} potion${this.batch===1?'':'s'}</button></div>
       `:`<div class="awb-empty-state"><i class="fas fa-flask-vial"></i><h2>No potions currently craftable</h2><p>Extract herbs or obtain reagents first. Check Inventory to see what the module recognises.</p><button type="button" data-tab="inventory">Inspect inventory</button></div>`}</section>
     </div>`;
   }
@@ -219,6 +227,8 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     finally{this.busy=false;await this.render();}
   }
   async _doBrew(){
+    const eligibility=this.services.brewingEligibility(this.actor);
+    if(!eligibility.ok)throw new Error(eligibility.errors.join(' '));
     const recipe=this.services.recipes.find(x=>x.id===this.recipeId);
     if(!recipe)throw new Error('Choose an available recipe.');
     const map=this.services.mappings(),plan=planBrew(this.actor,recipe,this.batch,map,this.selectedIds,this.change);

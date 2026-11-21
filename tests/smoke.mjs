@@ -4,6 +4,8 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {TIERS,COLOURS,KEYS,recipeTier,DC,HOURS,requirements,planRecipe,planRefine,percentageYield,chanceSucceeds,assertQty,classifyHerbs,maximumCraftableBatch,availableRefinementTargets} from '../scripts/engine.mjs';
 import {getQty,planExtract,planDowngrade,applyInventory,identity,findMatchedInventory,inventoryAudit,markActorInventory} from '../scripts/inventory.mjs';
+import {brewingEligibility,isAlchemistSupplies,rollAlchemyToolCheck,naturalD20Result} from '../scripts/eligibility.mjs';
+import {captureWorkbenchViewport,restoreWorkbenchViewport} from '../scripts/viewport.mjs';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const recipes=JSON.parse(fs.readFileSync(path.join(root,'data/recipes.json'),'utf8'));
 const herbs=JSON.parse(fs.readFileSync(path.join(root,'data/herbs.json'),'utf8'));
@@ -74,6 +76,28 @@ check(chanceSucceeds(100,100)===true,'100% guaranteed');
 // Show virtual d40 mapping is uniform and bounded 1–40.
 let combinations=[];for(let d10=1;d10<=10;d10++)for(let d4=1;d4<=4;d4++)combinations.push((d10-1)*4+d4);
 check(new Set(combinations).size===40&&Math.min(...combinations)===1&&Math.max(...combinations)===40,'virtual d40 is exactly uniform');
+
+// New tool eligibility and native check regression tests.
+const supplies={type:'tool',name:"Alchemist's Supplies",system:{quantity:1,type:{baseItem:'alchemist'}}};
+const trained={items:[supplies],system:{tools:{alchemist:{value:1,prof:{hasProficiency:true,multiplier:1}}}},rollToolCheck:async()=>[]};
+check(isAlchemistSupplies(supplies),'dnd5e alchemist tool item recognised');
+check(brewingEligibility(trained).ok,'supplies and proficiency permit brewing');
+check(!brewingEligibility({...trained,items:[]}).ok,'missing supplies block brewing');
+check(!brewingEligibility({...trained,system:{tools:{alchemist:{value:0}}}}).ok,'missing proficiency blocks brewing');
+const checksNative=[];
+trained.rollToolCheck=async(config,dialog,message)=>{checksNative.push({config,dialog,message});return [{total:17,d20:{results:[{result:20,active:true}]}}];};
+check(naturalD20Result(await rollAlchemyToolCheck(trained,12))===20,'native alchemist tool check retains critical d20');
+await rollAlchemyToolCheck(trained,12,{followUp:true});
+check(checksNative[0].config.tool==='alchemist'&&checksNative[0].config.ability==='int'&&checksNative[0].config.item===supplies,'native check uses intelligence and carried tool');
+check(checksNative[0].config.target===12&&checksNative[0].dialog.configure===false,'native check applies DC and bypasses GM-only roll dialog');
+check(checksNative[1].config.advantage===false&&checksNative[1].config.disadvantage===false,'independent d20 follow-up');
+const beforeNodes={'.awb-main':{scrollTop:32,scrollLeft:0},'.awb-mapping-list':{scrollTop:550,scrollLeft:0}};
+const viewport=captureWorkbenchViewport({querySelector:x=>beforeNodes[x]}, {dataset:{mapping:'some-herb'},selectionStart:2,selectionEnd:4});
+const afterNodes={'.awb-main':{scrollTop:0,scrollLeft:0},'.awb-mapping-list':{scrollTop:0,scrollLeft:0}};
+let focused=false,sel=[];
+restoreWorkbenchViewport({querySelector:x=>afterNodes[x],querySelectorAll:()=>[{dataset:{mapping:'some-herb'},focus:()=>{focused=true;},setSelectionRange:(a,b)=>{sel=[a,b];}}]},viewport);
+check(afterNodes['.awb-mapping-list'].scrollTop===550&&afterNodes['.awb-main'].scrollTop===32,'mapping scroll positions persist across rendering');
+check(focused&&sel[0]===2&&sel[1]===4,'mapping input focus and selection restored');
 
 // Mock actor Item operations (no Foundry runtime required) to verify real inventory changes and rollback.
 let serial=0;
@@ -150,7 +174,7 @@ const mismatched={...mappedCopies,reagents:{common_curative:'Item.another-world-
 check(identity(copied,'Item.another-world-item','common_curative'),'persistent category survives remapping the template UUID');
 check(inventoryAudit(actorCopied,{...mappedCopies,reagents:{}},herbs).unmapped.length===1,'inventory audit identifies unmatched copies');
 const {AlchemyWorkbench}=await import('../scripts/workbench.mjs');
-const uiServices={recipes,herbs,mappings:()=>mappedCopies,submit:async()=>'',saveMappings:async()=>0,pending:async()=>null};
+const uiServices={recipes,herbs,mappings:()=>mappedCopies,submit:async()=>'',saveMappings:async()=>0,pending:async()=>null,brewingEligibility:()=>({ok:true,errors:[]})};
 game.user={id:'gm',isGM:true};
 const panel=new AlchemyWorkbench(actorCopied,uiServices);
 const html=await panel._renderHTML();
@@ -173,10 +197,10 @@ console.log('Foundry startup mock passed.');
 let mappings={reagents:{common_curative:'Item.common_curative'},herbs:{},outputs:{}};
 let pendingRecords=[];
 const gmUser={id:'gm',active:true,isGM:true},playerUser={id:'player',active:true,isGM:false};
-const actorGame=new Actor(new Item('c','Common Curative','common_curative',6));
+const actorGame=equipBrewer(new Actor(new Item('c','Common Curative','common_curative',6)));
 actorGame.testUserPermission=()=>true;
 const responses=[];
-let rollValues=[],postedRolls=[];
+let rollValues=[],postedRolls=[],nativeCalls=[];
 globalThis.Roll=class{
  constructor(formula){this.formula=formula;this.total=null;this.dice=[];}
  async evaluate(){
@@ -192,6 +216,20 @@ globalThis.Roll=class{
  async toMessage(data){postedRolls.push({formula:this.formula,flavor:data.flavor,total:this.total});}
 };
 globalThis.ChatMessage={getSpeaker:()=>({alias:'Test Actor'}),create:async()=>({})};
+function equipBrewer(actor){
+ const supplies=new Item('alchemy-tool', "Alchemist's Supplies", null,1);
+ supplies.type='tool';supplies.system.type={baseItem:'alchemist'};
+ actor.items.contents.push(supplies);
+ actor.system.tools.alchemist={value:1,prof:{multiplier:1,hasProficiency:true}};
+ actor.rollToolCheck=async(config,dialog,message)=>{
+   nativeCalls.push({config,dialog,message});
+   const roll=await new Roll('1d20 + 2').evaluate();
+   await roll.toMessage({flavor:message.data.flavor});
+   return [roll];
+ };
+ return actor;
+}
+
 
 const activeUsers=[gmUser,playerUser];
 game.user=gmUser;
@@ -203,15 +241,32 @@ game.settings.set=async(id,key,value)=>{if(key==='pending')pendingRecords=value;
 function eventuallyResponse(){
  return new Promise((resolve,reject)=>{const started=Date.now();const poll=()=>{if(responses.length)return resolve(responses.shift());if(Date.now()-started>2000)return reject(Error('No response'));setTimeout(poll,1);};poll();});
 }
+// Missing tools or proficiency are GM-side errors; neither dice nor reagents are spent.
+const untrained=new Actor(new Item('untrained','Common Curative','common_curative',3));
+untrained.testUserPermission=()=>true;
+game.actors.get=id=>id==='test'?untrained:null;
+socketHandler({type:'request',nonce:'untrained',mode:'brew',actorId:'test',recipeId:'potion-of-healing',batch:1,selectedIds:['untrained'],change:'highest'},'player');
+let denied=await eventuallyResponse();
+check(!denied.ok&&/Supplies/.test(denied.message),'brew rejected without supplies');
+check(getQty(untrained.items.get('untrained'))===3&&postedRolls.length===0,'missing supplies cannot consume or roll');
+equipBrewer(untrained);
+untrained.system.tools.alchemist={value:0,prof:{hasProficiency:false,multiplier:0}};
+untrained.items.contents.find(x=>x.type==='tool').system.proficient=0;
+socketHandler({type:'request',nonce:'no-proficiency',mode:'brew',actorId:'test',recipeId:'potion-of-healing',batch:1,selectedIds:['untrained'],change:'highest'},'player');
+denied=await eventuallyResponse();
+check(!denied.ok&&/proficiency/.test(denied.message),'brew rejected without proficiency');
+check(getQty(untrained.items.get('untrained'))===3&&postedRolls.length===0,'missing proficiency cannot consume or roll');
+game.actors.get=id=>id==='test'?actorGame:null;
 rollValues=[15];
 socketHandler({type:'request',nonce:'success',mode:'brew',actorId:'test',recipeId:'potion-of-healing',batch:2,selectedIds:['c'],change:'highest',doublePass:'extra'},'player');
 let reply=await eventuallyResponse();
 check(reply.ok===true,'authenticated player can request a brew from active GM');
-check(postedRolls.length===1&&postedRolls[0].formula.startsWith('1d20'),'successful brew sends one standard Roll to chat (Dice So Nice)');
+check(postedRolls.length===1&&postedRolls[0].formula.startsWith('1d20'),'one native tool check triggers Dice So Nice chat');
+check(nativeCalls[0].config.tool==='alchemist'&&nativeCalls[0].config.ability==='int','brew uses native Intelligence (Alchemist Supplies) check');
 check(actorGame.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===2),'successful brew awards 2 potion items');
 check(!actorGame.items.get('c'),'initial two-potion batch consumed 6 curatives');
 // Simulate a failed brew with both follow-up dice succeeding: ingredients consumed, job pending.
-const actorPending=new Actor(new Item('p','Common Curative','common_curative',3));
+const actorPending=equipBrewer(new Actor(new Item('p','Common Curative','common_curative',3)));
 actorPending.testUserPermission=()=>true;
 game.actors.get=id=>id==='test'?actorPending:null;
 postedRolls=[];
@@ -228,7 +283,7 @@ check(pendingRecords.length===0,'GM completes pending batch and clears it');
 check(actorPending.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===1),'pending batch completion awards one potion');
 console.log('Multiplayer request / brewing / pending-completion mocks passed.');
 // Two successful follow-ups on initial failure trigger a live player choice, not a preselected dropdown.
-const actorChoice=new Actor(new Item('choice','Common Curative','common_curative',3));actorChoice.testUserPermission=()=>true;
+const actorChoice=equipBrewer(new Actor(new Item('choice','Common Curative','common_curative',3)));actorChoice.testUserPermission=()=>true;
 game.actors.get=id=>id==='test'?actorChoice:null;
 postedRolls=[];rollValues=[2,18,19,5,40];
 socketHandler({type:'request',nonce:'choice',mode:'brew',actorId:'test',recipeId:'potion-of-healing',batch:1,selectedIds:['choice'],change:'highest'},'player');
@@ -242,7 +297,7 @@ check(actorChoice.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)
 
 // Critical bonus >100%: 5 base potions, 2 passing follow-up checks, 210% bonus
 // => 10 guaranteed bonus + one 50% roll. A percentile of 40 awards an 11th bonus.
-const actorCritical=new Actor(new Item('crit','Common Curative','common_curative',15));
+const actorCritical=equipBrewer(new Actor(new Item('crit','Common Curative','common_curative',15)));
 actorCritical.testUserPermission=()=>true;
 game.actors.get=id=>id==='test'?actorCritical:null;
 postedRolls=[];
@@ -253,7 +308,7 @@ check(reply.ok===true,'critical roll resolved by GM');
 check(postedRolls.length===5&&postedRolls.at(-1).formula==='1d100','all critical follow-up, bonus, percentile dice sent to chat');
 check(actorCritical.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===16),'critical yield uses integer bonus plus one percentile result above 100%');
 // One failure-follow-up success: 50% of three potions gives one guaranteed, then 50% chance.
-const actorPartial=new Actor(new Item('partial','Common Curative','common_curative',9));
+const actorPartial=equipBrewer(new Actor(new Item('partial','Common Curative','common_curative',9)));
 actorPartial.testUserPermission=()=>true;
 game.actors.get=id=>id==='test'?actorPartial:null;
 postedRolls=[];
