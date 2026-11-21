@@ -83,3 +83,23 @@ export function planRefine(key,quantity,targetTier) {
 export function classifyHerbs(herbs){
  return herbs.filter(h=>h.reagents.some(k=>!k.startsWith(`${h.rarity}_`))).map(h=>({name:h.name,rarity:h.rarity,reagents:h.reagents}));
 }
+
+/** Determine craftability from an actor's recognised reagent stacks.
+ * Uses the same exact allocator as the GM transaction (including legal downward substitutions),
+ * rather than adding incompatible tier balances together.
+ */
+export function maximumCraftableBatch(recipe, inventory, cap=100) {
+  const limit=assertQty(cap,1000);
+  let low=0, high=limit;
+  while(low<high) {
+    const mid=Math.ceil((low+high)/2);
+    try { planRecipe(recipe,mid,inventory);low=mid; }
+    catch (err) { if(!/Not enough/i.test(err.message))throw err; high=mid-1; }
+  }
+  return low;
+}
+export function availableRefinementTargets(key) {
+  if(!KEYS.includes(key))return [];
+  const tier=tierOf(key);
+  return tier==='exotic'?['rare','common']:tier==='rare'?['common']:[];
+}

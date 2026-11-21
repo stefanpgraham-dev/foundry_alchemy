@@ -1,8 +1,10 @@
 {
   "name": "alchemy-workbench",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "scripts": {"test": "node tests/smoke.mjs"},
+  "scripts": {
+    "test": "node tests/smoke.mjs"
+  },
   "description": "Foundry VTT v14/D&D5e Alchemy Workbench"
 }

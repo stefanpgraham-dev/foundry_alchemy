@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
-import {TIERS,COLOURS,KEYS,recipeTier,DC,HOURS,requirements,planRecipe,planRefine,percentageYield,chanceSucceeds,assertQty,classifyHerbs} from '../scripts/engine.mjs';
-import {getQty,planExtract,planDowngrade,applyInventory} from '../scripts/inventory.mjs';
+import {TIERS,COLOURS,KEYS,recipeTier,DC,HOURS,requirements,planRecipe,planRefine,percentageYield,chanceSucceeds,assertQty,classifyHerbs,maximumCraftableBatch,availableRefinementTargets} from '../scripts/engine.mjs';
+import {getQty,planExtract,planDowngrade,applyInventory,identity,findMatchedInventory,inventoryAudit,markActorInventory} from '../scripts/inventory.mjs';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const recipes=JSON.parse(fs.readFileSync(path.join(root,'data/recipes.json'),'utf8'));
 const herbs=JSON.parse(fs.readFileSync(path.join(root,'data/herbs.json'),'utf8'));
@@ -38,6 +38,12 @@ assert.throws(()=>planRefine('common_curative',1,'rare'));
 assert.throws(()=>assertQty(0));
 assert.throws(()=>assertQty(1.25));
 const inv=(...args)=>args.map(([id,key,quantity])=>({id,key,quantity}));
+check(maximumCraftableBatch(recipe('Potion of Healing'),inv(['c','common_curative',6]))===2,'craftable-only list uses reagent counts');
+check(maximumCraftableBatch(recipe('Potion of Healing'),inv(['r','rare_curative',2]))===2,'craftable count allows downward substitutions');
+check(maximumCraftableBatch(recipe('Potion of Greater Healing'),inv(['c','common_curative',99]))===0,'not craftable: lower tiers cannot be upgraded');
+check(JSON.stringify(availableRefinementTargets('rare_curative'))===JSON.stringify(['common']),'rare reagent only offers common destination');
+check(JSON.stringify(availableRefinementTargets('exotic_curative'))===JSON.stringify(['rare','common']),'exotic offers both lower destinations');
+check(availableRefinementTargets('common_curative').length===0,'common offers no destination');
 let plan=planRecipe(recipe('Potion of Healing'),1,inv(['e','exotic_curative',1]));
 check(JSON.stringify(plan.consume)===JSON.stringify([{id:'e',quantity:1}]),'one exotic consumed');
 check(plan.return.rare_curative===2,'break exotic to rare and return 2 rare');
@@ -78,7 +84,7 @@ class Item {
 }
 class Actor {
  constructor(...items){this.id='test';this.name='Test';this.system={tools:{alchemist:{total:0}},abilities:{int:{mod:0}},attributes:{prof:2}};this.items={contents:items,get(id){return this.contents.find(x=>x.id===id)},*[Symbol.iterator](){yield* this.contents;}};this.failCreation=false;}
- async updateEmbeddedDocuments(type,updates){for(const u of updates){const item=this.items.get(u._id);if(!item)throw new Error('Bad item ID');item.system.quantity=u['system.quantity'];}return updates;}
+ async updateEmbeddedDocuments(type,updates){for(const u of updates){const item=this.items.get(u._id);if(!item)throw new Error('Bad item ID');if('system.quantity' in u)item.system.quantity=u['system.quantity'];for(const [k,v] of Object.entries(u))if(k.startsWith('flags.alchemy-workbench.')){item.flags['alchemy-workbench']??={};item.flags['alchemy-workbench'][k.split('.').at(-1)]=v;}}return updates;}
  async createEmbeddedDocuments(type,list){if(this.failCreation)throw Error('Simulated create failed');const docs=list.map(s=>{const item=new Item(`new${++serial}`,s.name,s.flags?.['alchemy-workbench']?.category,s.system?.quantity||1);item.flags=s.flags;this.items.contents.push(item);return item;});return docs;}
  async deleteEmbeddedDocuments(type,ids){this.items.contents=this.items.contents.filter(x=>!ids.includes(x.id));}
 }
@@ -112,6 +118,7 @@ globalThis.game={
  items:{contents:[],get:id=>templates[`Item.${id}`]||null}
 };
 globalThis.ui={notifications:{info:()=>{},warn:()=>{},error:e=>{throw Error(e)}}};
+globalThis.foundry={utils:{escapeHTML:s=>String(s),randomID:()=>`job-${++serial}`},applications:{api:{ApplicationV2:class{constructor(options){this.options=options;}}}}};
 const fetchNative=globalThis.fetch;
 globalThis.fetch=async url=>{
  const file=url.endsWith('recipes.json')?'recipes.json':url.endsWith('herbs.json')?'herbs.json':null;
@@ -125,6 +132,40 @@ check(typeof moduleEntry.api.open==='function'&&typeof moduleEntry.api.setup==='
 await hooks.ready();
 check(moduleEntry.api.getRecipes().length===44&&moduleEntry.api.getHerbs().length===43,'catalogues load in ready hook');
 check(socketChannel==='module.alchemy-workbench','module socket event registered');
+// A drag-copied World Item has a new actor UUID and may lack flags. Name fallback must still identify it.
+const worldReagent=new Item('world-common','Common Curative Reagent','common_curative',1);
+worldReagent.img='icons/consumables/potions/potion-bottle-corked-red.webp';
+templates['Item.world-common']=worldReagent;
+const copied=new Item('actor-copy','Common Curative Reagent','common_curative',6);
+copied.flags={};
+const actorCopied=new Actor(copied);
+const mappedCopies={reagents:{common_curative:'Item.world-common'},reagentNames:{common_curative:'Common Curative Reagent'},herbs:{},outputs:{}};
+check(identity(copied,'Item.world-common','common_curative'),'matching template name recognises copied World Item with different UUID');
+check(findMatchedInventory(actorCopied,mappedCopies).length===1,'copied reagent appears in actor inventory');
+check(maximumCraftableBatch(recipe('Potion of Healing'),findMatchedInventory(actorCopied,mappedCopies))===2,'copied reagents unlock a two-potion batch');
+await markActorInventory(actorCopied,mappedCopies,herbs);
+check(copied.getFlag('alchemy-workbench','category')==='common_curative','matched copy receives persistent reagent classification');
+check(copied.getFlag('alchemy-workbench','sourceUuid')==='Item.world-common','matched copy receives mapped template source UUID');
+const mismatched={...mappedCopies,reagents:{common_curative:'Item.another-world-item'},reagentNames:{}};
+check(identity(copied,'Item.another-world-item','common_curative'),'persistent category survives remapping the template UUID');
+check(inventoryAudit(actorCopied,{...mappedCopies,reagents:{}},herbs).unmapped.length===1,'inventory audit identifies unmatched copies');
+const {AlchemyWorkbench}=await import('../scripts/workbench.mjs');
+const uiServices={recipes,herbs,mappings:()=>mappedCopies,submit:async()=>'',saveMappings:async()=>0,pending:async()=>null};
+game.user={id:'gm',isGM:true};
+const panel=new AlchemyWorkbench(actorCopied,uiServices);
+const html=await panel._renderHTML();
+check(html.includes('Potion of Healing')&&!html.includes('Potion of Greater Healing'),'workbench hides unavailable recipes by default');
+check(html.includes('Max 2'),'workbench displays max craftable batch');
+check(!html.includes('<select name="recipe"'),'workbench uses cards rather than recipe dropdown');
+const rareItem=new Item('rare-ui','Rare Curative Reagent','rare_curative',1);rareItem.img=worldReagent.img;
+rareItem.flags['alchemy-workbench'].sourceUuid='Item.rare_curative';
+const rareActor=new Actor(rareItem);
+const rareMap={reagents:{rare_curative:'Item.rare_curative'},herbs:{},outputs:{}};
+const refinePanel=new AlchemyWorkbench(rareActor,{...uiServices,mappings:()=>rareMap});
+refinePanel.tab='refine';
+const refineHtml=await refinePanel._renderHTML();
+check(refineHtml.includes('data-refine-tier="common"')&&!refineHtml.includes('data-refine-tier="rare"'),'Rare reagent refinement UI never offers Rare as a target');
+
 globalThis.fetch=fetchNative;
 console.log('Foundry startup mock passed.');
 
@@ -151,7 +192,7 @@ globalThis.Roll=class{
  async toMessage(data){postedRolls.push({formula:this.formula,flavor:data.flavor,total:this.total});}
 };
 globalThis.ChatMessage={getSpeaker:()=>({alias:'Test Actor'}),create:async()=>({})};
-globalThis.foundry={utils:{escapeHTML:s=>String(s),randomID:()=>`job-${++serial}`}};
+
 const activeUsers=[gmUser,playerUser];
 game.user=gmUser;
 game.users={filter:fn=>activeUsers.filter(fn),get:id=>activeUsers.find(x=>x.id===id)};
@@ -186,6 +227,19 @@ await new Promise(resolve=>setTimeout(resolve,20));
 check(pendingRecords.length===0,'GM completes pending batch and clears it');
 check(actorPending.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===1),'pending batch completion awards one potion');
 console.log('Multiplayer request / brewing / pending-completion mocks passed.');
+// Two successful follow-ups on initial failure trigger a live player choice, not a preselected dropdown.
+const actorChoice=new Actor(new Item('choice','Common Curative','common_curative',3));actorChoice.testUserPermission=()=>true;
+game.actors.get=id=>id==='test'?actorChoice:null;
+postedRolls=[];rollValues=[2,18,19,5,40];
+socketHandler({type:'request',nonce:'choice',mode:'brew',actorId:'test',recipeId:'potion-of-healing',batch:1,selectedIds:['choice'],change:'highest'},'player');
+const choiceRequest=await eventuallyResponse();
+check(choiceRequest.type==='choiceRequest'&&choiceRequest.targetUserId==='player','GM prompts the player only after both follow-up checks succeed');
+socketHandler({type:'choiceResponse',requestId:choiceRequest.requestId,targetUserId:'gm',choice:'immediate'},'player');
+reply=await eventuallyResponse();
+check(reply.ok===true,'player can choose immediate partial yield after seeing follow-up rolls');
+check(postedRolls.length===5&&postedRolls.at(-1).formula==='1d100','immediate branch rolls d8 and fractional d100');
+check(actorChoice.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===1),'player-selected immediate branch awards partial yield');
+
 // Critical bonus >100%: 5 base potions, 2 passing follow-up checks, 210% bonus
 // => 10 guaranteed bonus + one 50% roll. A percentile of 40 awards an 11th bonus.
 const actorCritical=new Actor(new Item('crit','Common Curative','common_curative',15));

@@ -20,3 +20,144 @@
 .awb-chat h3{margin:0 0 6px}
 .awb-header-button{flex:0 0 auto;min-width:0;max-width:95px;padding:2px 5px;font-size:11px;white-space:nowrap}
 @media(max-width:540px){.awb-mapping{grid-template-columns:1fr}.awb-header-button{font-size:10px;max-width:72px}}
+
+/* v0.2 — single-window alchemy workbench, responsive on smaller screens */
+.alchemy-workbench.awb-app { --awb-brass:#b7a16f; --awb-line:#635b49; --awb-paper:#282a2d; --awb-muted:#aaa8a0; }
+.alchemy-workbench.awb-app .window-content { padding:0; overflow:hidden; color:#e9e5da; background:#1a1e20; }
+.awb-shell { display:flex;flex-direction:column;min-height:0;height:100%;font:13px/1.45 var(--font-primary,Arial,sans-serif);color:#e9e5da; }
+.awb-shell * {box-sizing:border-box;}
+.awb-shell h1,.awb-shell h2,.awb-shell h3,.awb-shell p {margin:0;}
+.awb-shell h1 {font-family:var(--font-primary,serif);font-size:28px;letter-spacing:.025em;line-height:1.15;color:#ead8a7;}
+.awb-shell h2 {font-size:18px;font-weight:650;color:#f1e9d8;line-height:1.25;}
+.awb-shell h3 {font-size:12px;letter-spacing:.055em;text-transform:uppercase;color:#d3be8d;margin:14px 0 8px;}
+.awb-hero {display:flex;justify-content:space-between;gap:15px;align-items:center;padding:18px 22px;background:linear-gradient(110deg,#332f2b,#222526 65%,#232b2a);border-bottom:1px solid #675742;}
+.awb-hero p {color:#b0aca5;margin-top:5px;}
+.awb-eyebrow {font-size:11px!important;letter-spacing:.15em!important;text-transform:uppercase;color:#d0b880!important;margin-bottom:4px!important;}
+.awb-hero-stats {display:flex;gap:11px;flex:0 0 auto;}
+.awb-hero-stats span {padding:9px 13px;border:1px solid #645a49;border-radius:8px;background:#2b2d2bb8;font-size:12px;text-align:center;color:#d8d2c5;}
+.awb-hero-stats strong {display:block;color:#e9d5a6;font-size:20px;}
+.awb-tabs {display:flex;gap:4px;background:#24282a;border-bottom:1px solid #514b40;padding:7px 13px 0;flex:0 0 auto;overflow-x:auto;}
+.awb-tabs button,.awb-subtabs button {border:0;border-bottom:2px solid transparent;border-radius:5px 5px 0 0;padding:10px 14px;background:none;color:#c0beb8;white-space:nowrap;cursor:pointer;font-weight:600;}
+.awb-tabs button.active,.awb-subtabs button.active {color:#f3d69f;border-bottom-color:var(--awb-brass);background:#393732;}
+.awb-tabs button:hover,.awb-subtabs button:hover {color:#fff;background:#45423a;}
+.awb-tabs i {margin-right:5px;}
+.awb-shell button {min-height:unset;line-height:1.25;}
+.awb-main {flex:1;min-height:0;overflow-y:auto;padding:15px;}
+.awb-brew-layout {display:grid;grid-template-columns:minmax(270px,42%) minmax(320px,1fr);gap:14px;min-height:100%;}
+.awb-two-col {display:grid;grid-template-columns:minmax(270px,39%) minmax(320px,1fr);gap:14px;min-height:100%;}
+.awb-panel {border-radius:10px;border:1px solid #54514a;background:linear-gradient(#303234,#292b2d);padding:16px;min-width:0;min-height:0;}
+.awb-browser {display:flex;flex-direction:column;}
+.awb-panel-heading {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;}
+.awb-tag {display:inline-block;border:1px solid #746b57;background:#48433a;border-radius:12px;padding:3px 8px;font-size:11px;white-space:nowrap;color:#e1d4bc;}
+.awb-tag.awb-available {background:#233b30;border-color:#477359;color:#c5e4c9;}
+.awb-tag.awb-warning {background:#493727;border-color:#866c3d;color:#f1d69a;}
+.awb-search-wrap {display:flex;align-items:center;gap:10px;padding:0 11px;border:1px solid #646059;border-radius:7px;background:#1f2224;margin-bottom:12px;color:#c1b9a2;min-height:38px;}
+.awb-search-wrap input {border:0!important;box-shadow:none!important;outline:none!important;background:transparent!important;color:#eee!important;padding:7px 0!important;width:100%!important;height:auto!important;}
+.awb-search-wrap input::placeholder {color:#a6a8a6;}
+.awb-switch {display:flex;gap:9px;align-items:center;color:#c3bfb7;font-size:12px;margin-bottom:10px;cursor:pointer;}
+.awb-switch input {margin:0;}
+.awb-recipe-list,.awb-item-list {display:flex;flex-direction:column;gap:6px;min-height:0;overflow-y:auto;}
+.awb-recipe-list {flex:1;max-height:65vh;padding-right:3px;}
+.awb-recipe-card,.awb-item-row {display:flex;gap:11px;align-items:center;padding:8px;text-align:left;background:#36383a;border:1px solid #55554d;border-radius:7px;color:#e8e4dd;min-width:0;}
+.awb-recipe-card {width:100%;cursor:pointer;}
+.awb-recipe-card:hover,.awb-item-row:hover {background:#42423d;}
+.awb-recipe-card.selected,.awb-item-row.selected {border-color:#c4a76b;background:#484135;box-shadow:inset 3px 0 0 #c4a76b;}
+.awb-recipe-card.disabled {cursor:not-allowed;opacity:.5;}
+.awb-art {flex:0 0 auto;width:38px;height:38px;object-fit:cover;border:1px solid #655f51;border-radius:7px;background:#222;}
+.awb-art.awb-featured {width:76px;height:76px;border:2px solid #7b6a4d;border-radius:11px;}
+.awb-recipe-content,.awb-item-row>span {display:flex;flex-direction:column;flex:1;min-width:0;gap:2px;}
+.awb-recipe-content strong,.awb-item-row strong {font-size:13px;font-weight:600;overflow-wrap:anywhere;color:#f2eee5;}
+.awb-recipe-content small,.awb-item-row small,.awb-batch-control small {display:block;font-size:11px;color:#b6b3ae;}
+.awb-item-row b {font-size:14px;color:#d9c393;}
+.awb-max {font-size:12px;color:#d7c18e;font-weight:bold;white-space:nowrap;padding-left:3px;}
+.awb-detail {display:flex;flex-direction:column;gap:0;}
+.awb-detail-head {display:flex;gap:14px;align-items:center;padding-bottom:15px;margin-bottom:4px;border-bottom:1px solid #58554d;}
+.awb-detail-head p:not(.awb-eyebrow) {color:#bbb7ae;margin-top:5px;}
+.awb-pills {display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;}
+.awb-material-list {display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;}
+.awb-material {display:inline-flex;align-items:center;gap:7px;padding:6px 8px;border:1px solid #696056;background:#343638;border-radius:6px;font-size:11px;max-width:100%;}
+.awb-material strong {font-weight:600;}
+.awb-material .awb-dot {width:9px;height:9px;flex:0 0 auto;border-radius:50%;background:#bbb;}
+.awb-material.awb-curative .awb-dot,.awb-stock.awb-curative {--awb-accent:#74b88b;}
+.awb-material.awb-poisonous .awb-dot,.awb-stock.awb-poisonous {--awb-accent:#d17873;}
+.awb-material.awb-reactive .awb-dot,.awb-stock.awb-reactive {--awb-accent:#79aade;}
+.awb-material .awb-dot {background:var(--awb-accent,#bbb);}
+.awb-material>span:last-child {color:#e8cf97;}
+.awb-batch-control {display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;margin:4px 0;border-top:1px solid #4d4b45;border-bottom:1px solid #4d4b45;}
+.awb-stepper {display:flex;align-items:center;gap:0;border:1px solid #726651;border-radius:6px;overflow:hidden;flex:0 0 auto;}
+.awb-stepper button {width:32px;height:32px;background:#585043;color:#f6e4bd;border:0;cursor:pointer;font-size:20px;}
+.awb-stepper button:disabled {opacity:.35;cursor:not-allowed;}
+.awb-stepper output {min-width:37px;text-align:center;font-size:16px;font-weight:bold;background:#232526;padding:5px;}
+.awb-summary {border-radius:7px;background:#23282a;border:1px solid #52544f;padding:12px;margin-bottom:12px;color:#e5e0d5;}
+.awb-summary-row {display:flex;flex-direction:column;gap:3px;padding-bottom:7px;overflow-wrap:anywhere;}
+.awb-summary-row+ .awb-summary-row {border-top:1px solid #4d4d47;padding-top:8px;}
+.awb-summary-row>span {font-size:11px;color:#b1aaa0;}
+.awb-summary-row>strong {font-size:12px;font-weight:600;}
+.awb-advanced {margin-bottom:10px;border:1px solid #4e4e49;border-radius:7px;padding:9px 11px;}
+.awb-advanced summary {cursor:pointer;color:#d9c39a;}
+.awb-advanced .awb-field {margin-top:10px;}
+.awb-advanced select {width:100%;background:#222;color:#eee;border:1px solid #777;}
+.awb-ingredient-picks {display:flex;flex-direction:column;gap:5px;max-height:160px;overflow:auto;margin-top:8px;}
+.awb-ingredient-picks label {font-size:12px;cursor:pointer;}
+.awb-bottom {display:flex;align-items:center;gap:10px;justify-content:space-between;margin-top:auto;padding-top:15px;border-top:1px solid #59554b;}
+.awb-bottom>div,.awb-bottom>p {min-width:0;}
+.awb-muted {font-size:11px;color:#b9b7b2;}
+.awb-shell button.awb-primary {flex:0 0 auto;color:#251e16;background:linear-gradient(#ddbd7b,#af8c52);border:1px solid #d3b072;border-radius:7px;padding:10px 15px;font-weight:700;cursor:pointer;min-height:38px;}
+.awb-shell button.awb-primary:hover {filter:brightness(1.13);}
+.awb-shell button.awb-primary:disabled {filter:grayscale(1);opacity:.5;cursor:not-allowed;}
+.awb-empty,.awb-empty-state {color:#b9b4ab;padding:22px 12px;text-align:center;}
+.awb-empty-state {margin:auto;max-width:350px;}
+.awb-empty-state i {font-size:34px;color:#ae996a;margin-bottom:15px;}
+.awb-empty-state h2 {margin-bottom:10px;}
+.awb-empty-state button {margin-top:10px;padding:8px;cursor:pointer;}
+.awb-choice-grid {display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 15px;}
+.awb-choice {padding:10px!important;min-height:55px!important;min-width:115px;background:#343638!important;border:1px solid #636157!important;border-radius:8px;display:flex;gap:9px;align-items:center;cursor:pointer;color:#eee;}
+.awb-choice.selected {border-color:#c4ab76!important;background:#504737!important;}
+.awb-choice strong {color:#ddc48c;}
+.awb-conversion {display:flex;justify-content:center;align-items:center;gap:30px;padding:15px;border:1px solid #55554c;border-radius:8px;background:#262a2c;}
+.awb-conversion>div {display:flex;align-items:center;flex-direction:column;gap:8px;font-weight:bold;font-size:17px;}
+.awb-conversion i {font-size:20px;color:#d6b77d;}
+.awb-center {text-align:center;color:#c9c3b7;margin:8px 0 15px!important;}
+.awb-stock-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.awb-stock {display:flex;gap:8px;align-items:center;border-left:3px solid var(--awb-accent,#8a8477);background:#3a3c3d;padding:9px;border-radius:4px;min-width:0;}
+.awb-stock>span {display:flex;flex-direction:column;gap:3px;min-width:0;}
+.awb-stock strong {font-size:11px;}
+.awb-stock small {font-size:11px;color:#c9c1b5;}
+.awb-stock .awb-art {width:31px;height:31px;}
+.awb-stock .awb-tag {padding:2px 4px;font-size:9px;}
+.awb-alert {padding:11px 16px;background:#37424a;border-left:4px solid #8aa2bd;line-height:1.4;}
+.awb-alert-good {background:#244035;border-left-color:#7ec297;}
+.awb-alert-warn {background:#49372e;border-left-color:#d8a16b;}
+.awb-subtabs {display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid #5c584e;}
+.awb-mapping-list {display:flex;flex-direction:column;gap:8px;max-height:57vh;overflow:auto;padding-right:4px;}
+.awb-mapping-card {display:grid;grid-template-columns:minmax(180px,40%) minmax(220px,1fr);align-items:center;gap:12px;padding:9px;border:1px solid #5d574d;background:#36383a;border-radius:7px;}
+.awb-mapping-name {display:flex;flex-direction:column;gap:4px;}
+.awb-mapping-target {display:flex;align-items:center;gap:8px;padding:5px;border:1px dashed #746953;border-radius:6px;background:#252729;min-width:0;}
+.awb-mapping-target .awb-art {width:30px;height:30px;}
+.awb-mapping-target input {flex:1;min-width:0;width:100%;background:#1e2224!important;color:#eae2d3!important;font-size:12px!important;border:1px solid #57564f!important;}
+.awb-drop-indicator {color:#c0a878;}
+.awb-mapping-card[hidden],.awb-recipe-card[hidden] {display:none!important;}
+.awb-gm .awb-panel-heading>button {padding:7px 10px;cursor:pointer;}
+@media (max-width:740px){
+ .awb-brew-layout,.awb-two-col {grid-template-columns:minmax(0,1fr);}
+ .awb-recipe-list {max-height:240px;}
+ .awb-detail-head {align-items:flex-start;}
+ .awb-hero {padding:12px;}
+ .awb-hero-stats {display:none;}
+ .awb-main {padding:8px;}
+ .awb-stock-grid {grid-template-columns:1fr;}
+ .awb-mapping-card {grid-template-columns:1fr;gap:5px;}
+}
+/* Visual result card in Foundry chat */
+.awb-chat.awb-result {background:#262a2b;color:#e8e3d8;border:1px solid #726249;border-radius:7px;padding:10px;overflow-wrap:anywhere;}
+.awb-result header {display:flex;gap:10px;align-items:center;margin-bottom:9px;}
+.awb-result header img {width:42px;height:42px;object-fit:cover;border-radius:5px;}
+.awb-result header small {color:#c4aa75;font-size:10px;letter-spacing:.04em;}
+.awb-result header h3 {color:#f2e3c3;font-size:15px;}
+.awb-result-counters {display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0;}
+.awb-result-counters span {padding:7px;background:#3a3934;border-radius:5px;text-align:center;color:#d9d2c4;}
+.awb-result-counters strong {font-size:21px;display:block;color:#e8d0a1;}
+.awb-result-critical {border-color:#c8a15e!important;}
+.awb-result-lost {border-color:#9b5a4b!important;}
+.awb-result-pending {border-color:#7c8fa0!important;}
+.awb-result p {font-size:12px;padding:2px 0;}

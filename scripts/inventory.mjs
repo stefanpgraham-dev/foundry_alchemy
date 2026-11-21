@@ -9,37 +9,64 @@ export async function template(uuid){
   const doc=await fromUuid(uuid);
   return doc?.documentName==='Item'?doc:null;
 }
-export function identity(item,configured, key=null){
-  if(!configured)return false;
+/** Copy-safe identity: actor Item UUIDs are intentionally never compared to their World Item UUID alone. */
+export function identity(item,configured,key=null,mappedName=''){
+  if(!configured || !item)return false;
   if(key && item.getFlag?.(MID,'category')===key)return true;
-  const provenance=[item.getFlag?.(MID,'sourceUuid'),item.flags?.core?.sourceId,item._stats?.compendiumSource];
+  const provenance=[
+    item.getFlag?.(MID,'sourceUuid'),item.flags?.core?.sourceId,
+    item._stats?.compendiumSource,item.system?.source?.uuid
+  ];
   if(provenance.some(p=>p && p===configured))return true;
   if(item.uuid===configured)return true;
-  if(configured.startsWith('Item.')){
-    const original=game.items?.get(configured.split('.')[1]);
-    if(original && normal(item.name)===normal(original.name))return true;
-  }
-  return false;
+  // World Items gain different actor IDs. Use their stable template name as fallback.
+  const source=configured.startsWith('Item.')?game.items?.get(configured.slice(5)):null;
+  const names=[mappedName,source?.name].filter(Boolean);
+  return names.some(n=>normal(n)===normal(item.name));
 }
-export function findMatchedInventory(actor, mappings, {selectedIds=null}={}) {
- const chosen=selectedIds?new Set(selectedIds):null,found=[];
- for(const item of actor.items){
-  if(getQty(item)<1 || (chosen&&!chosen.has(item.id)))continue;
-  for(const [key,uuid] of Object.entries(mappings.reagents||{})){
-   if(KEYS.includes(key)&&identity(item,uuid,key)){
-    found.push({id:item.id,key,quantity:getQty(item),item});break;
-   }
+export function findMatchedInventory(actor,mappings,{selectedIds=null}={}){
+  const chosen=selectedIds?new Set(selectedIds):null,found=[];
+  for(const item of actor.items){
+    if(getQty(item)<1 || (chosen&&!chosen.has(item.id)))continue;
+    for(const [key,uuid] of Object.entries(mappings.reagents||{})){
+      if(KEYS.includes(key)&&identity(item,uuid,key,mappings.reagentNames?.[key])){
+        found.push({id:item.id,key,quantity:getQty(item),item});break;
+      }
+    }
   }
- }
- return found;
+  return found;
 }
 export function findHerbs(actor,mappings,herbs){
- const matched=[];
- for(const herb of herbs){
-  const uuid=mappings.herbs?.[herb.id]; if(!uuid)continue;
-  for(const item of actor.items)if(getQty(item)>0 && identity(item,uuid,herb.id))matched.push({herb,item,quantity:getQty(item)});
- }
- return matched;
+  const matched=[];
+  for(const herb of herbs){
+    const uuid=mappings.herbs?.[herb.id];if(!uuid)continue;
+    for(const item of actor.items){
+      if(getQty(item)>0 && identity(item,uuid,herb.id,mappings.herbNames?.[herb.id])){
+        matched.push({herb,item,quantity:getQty(item)});
+      }
+    }
+  }
+  return matched;
+}
+/** Explain unrecognised inventory records rather than showing an empty workbench. */
+export function inventoryAudit(actor,mappings,herbs){
+  const reagents=findMatchedInventory(actor,mappings);
+  const foundHerbs=findHerbs(actor,mappings,herbs);
+  const known=new Set([...reagents,...foundHerbs].map(x=>x.item.id));
+  const unmapped=actor.items.contents.filter(it=>getQty(it)>0&&!known.has(it.id));
+  return {reagents,herbs:foundHerbs,unmapped};
+}
+/** Stamp matched items with stable category metadata. GM-only and non-destructive. */
+export async function markActorInventory(actor,mappings,herbs){
+  const {reagents,herbs:plants}=inventoryAudit(actor,mappings,herbs);
+  const updates=[];
+  for(const row of [...reagents,...plants.map(x=>({...x,key:x.herb.id}))]){
+    const sourceUuid=mappings.reagents?.[row.key]||mappings.herbs?.[row.key];
+    if(row.item.getFlag?.(MID,'category')===row.key && row.item.getFlag?.(MID,'sourceUuid')===sourceUuid)continue;
+    updates.push({_id:row.item.id,[`flags.${MID}.category`]:row.key,[`flags.${MID}.sourceUuid`]:sourceUuid});
+  }
+  if(updates.length)await actor.updateEmbeddedDocuments('Item',updates);
+  return updates.length;
 }
 export async function sourceData(uuid, category=null){
  const t=await template(uuid);
@@ -90,7 +117,7 @@ export async function applyInventory(actor, consumed, outputs, mappings) {
  const additions=[];
  for(const {out,data,templateUuid,id} of sources){
   const matching=actor.items.contents.find(it=> !qtyMap.has(it.id) && getQty(it)>0 &&
-    (templateUuid?identity(it,templateUuid,out.kind==='reagent'?id:null):it.getFlag?.(MID,'recipeId')===id));
+    (templateUuid?identity(it,templateUuid,out.kind==='reagent'?id:null,out.kind==='reagent'?mappings.reagentNames?.[id]:''):it.getFlag?.(MID,'recipeId')===id));
   if(matching){
     const target=updates.find(u=>u._id===matching.id);
     if(target)target['system.quantity']+=out.quantity;
@@ -118,7 +145,7 @@ export function planExtract(actor,herbId,actorItemId,qty,herbs,mappings,reagentK
  const herb=herbs.find(h=>h.id===herbId);
  if(!herb || !herb.reagents.includes(reagentKey))throw new Error('This herb cannot produce the selected reagent.');
  const item=actor.items.get(actorItemId);
- if(!item || !identity(item,mappings.herbs?.[herb.id],herb.id))throw new Error('That herb is not mapped to this item.');
+ if(!item || !identity(item,mappings.herbs?.[herb.id],herb.id,mappings.herbNames?.[herb.id]))throw new Error('That herb is not mapped to this item.');
  const quantity=assertQty(qty,1000);
  if(getQty(item)<quantity)throw new Error('Not enough herbs.');
  return {consume:[{id:item.id,quantity}],outputs:[{kind:'reagent',id:reagentKey,quantity}]};

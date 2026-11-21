@@ -1,5 +1,6 @@
 import {KEYS, TIERS, COLOURS, DC, HOURS,recipeTier,percentageYield,chanceSucceeds,classifyHerbs,assertQty} from './engine.mjs';
-import {MID,getQty,normal,setting,findMatchedInventory,findHerbs,planBrew,planExtract,planDowngrade,applyInventory,changeOutputs,template} from './inventory.mjs';
+import {MID,getQty,normal,setting,findMatchedInventory,findHerbs,markActorInventory,planBrew,planExtract,planDowngrade,applyInventory,changeOutputs,template} from './inventory.mjs';
+import {AlchemyWorkbench} from './workbench.mjs';
 
 const DIALOG=()=>foundry.applications.api.DialogV2;
 const esc=v=>foundry.utils.escapeHTML(String(v??''));
@@ -7,7 +8,7 @@ const slug=s=>String(s).replace(/_/g,' ');
 const actors=()=>game.actors.contents.filter(a=>a.testUserPermission(game.user,'OWNER'));
 const blankMappings=()=>({reagents:{},herbs:{},outputs:{}});
 let recipes=[],herbs=[];
-const locks=new Set(),waiting=new Map();
+const locks=new Set(),waiting=new Map(),decisions=new Map();
 const SOCKET=`module.${MID}`;
 const pickGM=()=>game.users.filter(u=>u.active&&u.isGM).sort((a,b)=>a.id.localeCompare(b.id))[0];
 const owns=(actor,user)=>user?.isGM||actor?.testUserPermission(user,'OWNER');
@@ -34,20 +35,18 @@ async function selectActor(){
  const result=await wait('Alchemy — Select Character',`<div class="awb">${field('Character',sel('actor',possible.map(a=>({value:a.id,label:a.name}))))}</div>`,[button('choose','Choose',(e,b)=>b.form.elements.actor.value,true)]);
  return result?game.actors.get(result):null;
 }
-async function hub(){
+function workbench(actor){
+ return new AlchemyWorkbench(actor,{
+  recipes, herbs, mappings:setting, submit:submitAction,
+  saveMappings, pending:pendingDialog
+ });
+}
+async function hub({tab='brew'}={}){
  if(!recipes.length){ui.notifications.warn('Alchemy data are not ready.');return;}
  try{
   const actor=await selectActor();if(!actor)return;
-  const modes=[{id:'brew',label:'Brew Potions',desc:'44 potion, poison and alchemical recipes'},{id:'extract',label:'Prepare Reagents',desc:'Turn one herb into one reagent'},{id:'refine',label:'Refine Reagents',desc:'Downgrade to three of the next tier'},{id:'audit',label:'Inspect Inventory',desc:'Show recognised reagents and herbs'}];
-  if(game.user.isGM)modes.push({id:'setup',label:'GM Item Mapping',desc:'Map World Items, herbs, potion outputs and pending batches'});
-  const content=`<div class="awb"><p><strong>${esc(actor.name)}</strong></p>${listHtml(modes.map((x,i)=>`<label class="awb-mode"><input type="radio" name="mode" value="${x.id}" ${i===0?'checked':''}><span><strong>${esc(x.label)}</strong><small>${esc(x.desc)}</small></span></label>`))}</div>`;
-  const choice=await wait('Alchemy Workbench',content,[button('open','Open',(e,b)=>b.form.elements.mode.value,true)]);
-  if(!choice)return;
-  if(choice==='brew')await brewDialog(actor);
-  if(choice==='extract')await extractDialog(actor);
-  if(choice==='refine')await refineDialog(actor);
-  if(choice==='audit')await auditActor(actor);
-  if(choice==='setup'&&game.user.isGM)await setupHub();
+  const app=workbench(actor);app.tab=tab;await app.render(true);
+  return app;
  }catch(err){notifyError(err);}
 }
 async function auditActor(actor){
@@ -120,6 +119,33 @@ async function setupHub(){
  if(result==='pending')await pendingDialog();
  if(result==='audit')await wait('Alchemy — Herb Audit',`<div class="awb">${listHtml(audit.map(h=>`<p><strong>${esc(h.name)}</strong> — herb rarity ${esc(h.rarity)}; reagent properties ${esc(h.reagents.join(', '))}</p>`))}</div>`,[button('ok','Close',()=>true,true)]);
 }
+async function saveMappings(kind,values){
+ if(!game.user.isGM)throw new Error('GM access required.');
+ if(!['reagents','herbs','outputs'].includes(kind))throw new Error('Invalid mapping section.');
+ const map=structuredClone(setting()||blankMappings());
+ const source=kind==='reagents'?KEYS.map(id=>({id})):kind==='herbs'?herbs:recipes;
+ const accepted=new Set(source.map(x=>x.id));
+ const result=Object.fromEntries(Object.entries(values).filter(([id,uuid])=>accepted.has(id)&&typeof uuid==='string'&&uuid.trim()).map(([id,uuid])=>[id,uuid.trim()]));
+ const names={};
+ for(const [id,uuid] of Object.entries(result)){
+  const t=await template(uuid);
+  if(!t)throw new Error(`Invalid Item UUID for ${id}: ${uuid}`);
+  names[id]=t.name;
+ }
+ map[kind]=result;
+ if(kind==='reagents')map.reagentNames=names;
+ if(kind==='herbs')map.herbNames=names;
+ await game.settings.set(MID,'mappings',map);
+ if(kind==='reagents'||kind==='herbs'){
+  let marked=0;
+  for(const actor of game.actors.contents){
+   try{marked+=await markActorInventory(actor,map,herbs);}
+   catch(err){console.warn(`${MID}: Could not stamp items for actor ${actor.name}`,err);}
+  }
+  ui.notifications.info(`Alchemy: Saved ${Object.keys(result).length} ${kind} mappings; marked ${marked} actor items.`);
+ }else ui.notifications.info(`Alchemy: Saved ${Object.keys(result).length} ${kind} mappings.`);
+ return Object.keys(result).length;
+}
 async function mappingScreen(kind){
  if(!game.user.isGM)throw new Error('GM access required.');
  const m=structuredClone(setting()||blankMappings());
@@ -133,12 +159,7 @@ async function mappingScreen(kind){
  const content=`<div class="awb"><p>Choose World Items from the suggestions, or paste Item/Compendium UUIDs. Empty entries are allowed, but required reagents must be mapped for crafting.</p>${datalist}<div class="awb-mapping-scroll">${cells.join('')}</div></div>`;
  const result=await wait(`Alchemy — Map ${kind}`,content,[button('save','Save Mappings',(e,b)=>Object.fromEntries(source.map(x=>[x.id,String(b.form.elements[`map-${x.id}`]?.value||'').trim()])),true)]);
  if(!result)return;
- let invalid=[];
- for(const [id,uuid] of Object.entries(result))if(uuid&&!await uuidValid(uuid))invalid.push(`${id}: ${uuid}`);
- if(invalid.length)throw new Error(`Invalid item UUID(s): ${invalid.slice(0,4).join('; ')}${invalid.length>4?'…':''}`);
- m[kind]=Object.fromEntries(Object.entries(result).filter(([,v])=>v));
- await game.settings.set(MID,'mappings',m);
- ui.notifications.info(`Alchemy: ${kind} mappings saved (${Object.keys(m[kind]).length}).`);
+ await saveMappings(kind,result);
 }
 async function pendingDialog(){
  if(!game.user.isGM)throw new Error('GM access required.');
@@ -152,13 +173,13 @@ function nonce(){return foundry.utils.randomID(20);}
 async function submitAction(data){
  const gm=pickGM();if(!gm)throw new Error('An active GM is required to perform inventory transactions and dice rolls.');
  const message={type:'request',nonce:nonce(),...data};
- if(gm.id===game.user.id){await executeRequest(message,game.user.id);return;}
+ if(gm.id===game.user.id)return await executeRequest(message,game.user.id);
  const answer=new Promise((resolve,reject)=>{
-  const timeout=setTimeout(()=>{waiting.delete(message.nonce);reject(new Error('The GM did not respond within 30 seconds. Check connection and retry.'));},30000);
+  const timeout=setTimeout(()=>{waiting.delete(message.nonce);reject(new Error('The GM did not respond within 120 seconds. Check connection and retry.'));},120000);
   waiting.set(message.nonce,{resolve,reject,timeout});
  });
  game.socket.emit(SOCKET,message);
- try{const result=await answer;ui.notifications.info(result);}catch(err){notifyError(err);}
+ const result=await answer;ui.notifications.info(result);return result;
 }
 async function roll(formula,flavor,actor){
  const r=await new Roll(formula).evaluate();
@@ -186,7 +207,20 @@ async function fractionalRoll(yieldData,actor,label){
  return yieldData.guaranteed+Number(chanceSucceeds(r.total,yieldData.fractional));
 }
 function checkFormula(mod){return `1d20 ${mod<0?`- ${-mod}`:`+ ${mod}`}`;}
-async function brewOutcome(actor,recipe,batch,doublePass){
+async function choiceDialog(actor){
+ const answer=await DIALOG().wait({window:{title:'Alchemy — Both Follow-up Checks Succeeded'},classes:[MID],content:`<div class="awb"><h3>${esc(actor.name)}: choose how to finish brewing</h3><p>Both follow-up checks succeeded after the initial failed check.</p><p><strong>Option A:</strong> Complete the full batch after 50% additional brewing time (GM approves completion later).</p><p><strong>Option B:</strong> Resolve immediately using 1d8 × 10% of the batch, with a d100 for any remainder.</p></div>`,buttons:[{action:'extra',label:'Full batch · +50% time',default:true,callback:()=> 'extra'},{action:'immediate',label:'Partial batch · now',callback:()=> 'immediate'}],rejectClose:false});
+ return answer==='immediate'?'immediate':'extra';
+}
+async function requestFailureChoice(actor,senderId){
+ if(senderId===game.user.id)return choiceDialog(actor);
+ const requestId=nonce();
+ return new Promise(resolve=>{
+  const timeout=setTimeout(()=>{decisions.delete(requestId);resolve('extra');},60000);
+  decisions.set(requestId,{resolve,timeout,senderId});
+  game.socket.emit(SOCKET,{type:'choiceRequest',requestId,targetUserId:senderId,actorName:actor.name});
+ });
+}
+async function brewOutcome(actor,recipe,batch,{senderId,doublePass}={}){
  const tier=recipeTier(recipe),dc=DC[tier],mod=toolModifier(actor);
  const initial=await roll(checkFormula(mod),`Intelligence (Alchemist’s Supplies) · DC ${dc}`,actor);
  const natural=firstDie(initial);
@@ -209,7 +243,10 @@ async function brewOutcome(actor,recipe,batch,doublePass){
  const b=await roll(checkFormula(mod),'Failure follow-up — second d20',actor);
  const passes=Number(a.total>=dc)+Number(b.total>=dc);
  if(passes===0)return {status:'lost',produced:0,passes};
- if(passes===2&&doublePass==='extra')return {status:'pending',produced:0,passes,extraHours:HOURS[tier]/2};
+ if(passes===2){
+  const choice=['extra','immediate'].includes(doublePass)?doublePass:await requestFailureChoice(actor,senderId);
+  if(choice==='extra')return {status:'pending',produced:0,passes,extraHours:HOURS[tier]/2};
+ }
  const r=await roll('1d8','Partial yield — 1d8 × 10%',actor);
  const pct=r.total*10;
  const produced=await fractionalRoll(percentageYield(batch,pct),actor,'Partial yield');
@@ -228,8 +265,8 @@ async function executeRequest(p,senderId){
  locks.add(key);
  try{
   const result=await performAction(p,senderId);
-  respond(p,senderId,true,result);
- }catch(err){console.error(`${MID} request error`,err);respond(p,senderId,false,err.message||'Crafting failed.');}
+  respond(p,senderId,true,result);return result;
+ }catch(err){console.error(`${MID} request error`,err);respond(p,senderId,false,err.message||'Crafting failed.');if(senderId===game.user.id)throw err;}
  finally{locks.delete(key);}
 }
 function respond(p,userId,ok,message){
@@ -273,12 +310,12 @@ async function performAction(p,senderId){
  }
  const recipe=recipeBy(p.recipeId),batch=assertQty(p.batch);
  if(!recipe)throw new Error('Unrecognised recipe.');
- if(!['immediate','extra'].includes(p.doublePass)||!['highest','common'].includes(p.change))throw new Error('Invalid brewing options.');
+ if((p.doublePass!==undefined&&!['immediate','extra'].includes(p.doublePass))||!['highest','common'].includes(p.change))throw new Error('Invalid brewing options.');
  if(!Array.isArray(p.selectedIds)||p.selectedIds.length>200||p.selectedIds.some(x=>typeof x!=='string'))throw new Error('Invalid ingredient selection.');
  const plan=planBrew(actor,recipe,batch,map,p.selectedIds,p.change);
  // Verify all change output templates before taking any dice or inventory changes.
  for(const key of Object.keys(plan.return))if(!await template(map.reagents?.[key]))throw new Error(`Reagent change item is unmapped: ${key}`);
- const result=await brewOutcome(actor,recipe,batch,p.doublePass);
+ const result=await brewOutcome(actor,recipe,batch,{senderId,doublePass:p.doublePass});
  const outputs=changeOutputs(plan);
  if(result.produced)outputs.push({kind:'potion',id:recipe.id,name:recipe.name,quantity:result.produced});
  if(result.status==='pending'){
@@ -297,7 +334,10 @@ async function performAction(p,senderId){
   }
  }else await applyInventory(actor,plan.consume,outputs,map);
  const extra=result.status==='pending'?`Ready after an additional ${result.extraHours} hours; ingredients reserved/consumed.`:'';
- await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<article class="awb-chat"><h3>${esc(recipe.name)} × ${batch}</h3><p><strong>Result:</strong> ${esc(result.status)} · Produced ${result.produced} · ${esc(extra)}</p><p><strong>Change returned:</strong> ${esc(fmt(changeOutputs(plan)))}</p>${result.bonusPct!==undefined?`<p>Critical bonus: +${result.bonusPct}%, ${result.bonus} additional potions</p>`:''}${result.percent!==undefined?`<p>Partial yield: ${result.percent}%</p>`:''}</article>`});
+ const outputItem=await template(map.outputs?.[recipe.id]);
+ const art=outputItem?.img||'icons/consumables/potions/potion-bottle-corked-red.webp';
+ const outcomeLabels={critical:'Critical Success',success:'Successful Brew',partial:'Partial Success',pending:'Awaiting Extra Brewing Time',lost:'Failed Brew'};
+ await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<article class="awb-chat awb-result awb-result-${esc(result.status)}"><header><img src="${esc(art)}" alt=""><div><small>ALCHEMICAL BREWING · ${esc(outcomeLabels[result.status]||result.status)}</small><h3>${esc(recipe.name)}</h3></div></header><div class="awb-result-counters"><span><strong>${batch}</strong> attempted</span><span><strong>${result.produced}</strong> produced</span></div>${extra?`<p>${esc(extra)}</p>`:''}<p><strong>Reagents returned:</strong> ${esc(fmt(changeOutputs(plan)))}</p>${result.bonusPct!==undefined?`<p><strong>Critical bonus:</strong> +${result.bonusPct}% — ${result.bonus} additional potions</p>`:''}${result.percent!==undefined?`<p><strong>Partial yield:</strong> ${result.percent}%</p>`:''}</article>`});
  return `${recipe.name}: ${result.status}; ${result.produced} potions made.${extra?' '+extra:''}`;
 }
 function onSocket(payload,senderId){
@@ -306,7 +346,15 @@ function onSocket(payload,senderId){
   // Foundry appends the authenticated sender's user ID to module socket callbacks.
   if(typeof senderId!=='string'||!game.users.get(senderId))return;
   void executeRequest(payload,senderId);
- }else if(payload.type==='result' && payload.targetUserId===game.user.id){
+  }else if(payload.type==='choiceRequest' && payload.targetUserId===game.user.id && senderId===pickGM()?.id){
+   void choiceDialog({name:payload.actorName}).then(choice=>{
+    game.socket.emit(SOCKET,{type:'choiceResponse',requestId:payload.requestId,choice,targetUserId:senderId});
+   }).catch(err=>console.warn('Alchemy choice dialog failed',err));
+  }else if(payload.type==='choiceResponse' && payload.targetUserId===game.user.id){
+   const item=decisions.get(payload.requestId);
+   if(!item||item.senderId!==senderId||!['extra','immediate'].includes(payload.choice))return;
+   clearTimeout(item.timeout);decisions.delete(payload.requestId);item.resolve(payload.choice);
+  }else if(payload.type==='result' && payload.targetUserId===game.user.id){
   const pending=waiting.get(payload.nonce);if(!pending)return;
   clearTimeout(pending.timeout);waiting.delete(payload.nonce);
   if(payload.ok)pending.resolve(payload.message);else pending.reject(new Error(payload.message));
@@ -323,10 +371,14 @@ function addSheetButton(app,html){
 Hooks.once('init',()=>{
  game.settings.register(MID,'mappings',{name:'Alchemy item mappings',scope:'world',config:false,type:Object,default:blankMappings()});
  game.settings.register(MID,'pending',{name:'Pending alchemy brews',scope:'world',config:false,type:Array,default:[]});
- const api={open:hub,setup:setupHub,getRecipes:()=>structuredClone(recipes),getHerbs:()=>structuredClone(herbs)};
+ const api={open:hub,setup:()=>hub({tab:'gm'}),legacySetup:setupHub,getRecipes:()=>structuredClone(recipes),getHerbs:()=>structuredClone(herbs)};
  game.modules.get(MID).api=api;
  Hooks.on('renderActorSheetV2',addSheetButton);
  Hooks.on('renderActorSheet',addSheetButton);
+ Hooks.on('createItem',async item=>{
+  if(!game.user.isGM || !item?.parent || item.parent.documentName!=='Actor'||!herbs.length)return;
+  try{await markActorInventory(item.parent,setting(),herbs);}catch(err){console.warn(`${MID}: automatic item classification failed`,err);}
+ });
 });
 Hooks.once('ready',async()=>{
  if(game.system.id!=='dnd5e'){ui.notifications.warn('Alchemy Workbench requires the dnd5e system.');return;}
