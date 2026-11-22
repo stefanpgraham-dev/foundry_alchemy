@@ -34,7 +34,7 @@ assert.throws(()=>validateRecipe({...valid,cost:{unknown:1}}),/Unknown reagent/)
 assert.throws(()=>validateRecipe({...valid,cost:{rare_curative:0}}),/whole numbers/);
 assert.throws(()=>validateRecipe({...valid,dcOverride:90}),/Override DC/);
 assert.throws(()=>validateRecipe({...valid,hoursOverride:3.3}),/quarter-hour/);
-assert.throws(()=>validateRecipe({id:'custom-example',name:'New',cost:{rare_reactive:1},source:'custom'}),/output Item/);
+assert.throws(()=>validateRecipe({id:'custom-example',name:'New',cost:{rare_reactive:1},source:'custom'}),/potion Item/);
 const custom=validateRecipe({id:'custom-example',name:'Potion of Clarity',cost:{rare_reactive:2,common_curative:1},source:'custom',outputUuid:'Item.customPotion',enabled:false});
 assert.equal(custom.enabled,false);
 assert.deepEqual(validateLibrary([custom]),[custom]);
