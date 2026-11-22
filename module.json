@@ -2,7 +2,7 @@
   "id": "alchemy-workbench",
   "title": "Alchemy Workbench",
   "description": "World-configurable alchemy with directory-driven herbs and reagents, editable potion recipes, safe pending brews and batch crafting for Foundry v14/D&D 5e.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "authors": [
     {
       "name": "stefanpgraham-dev"
@@ -31,7 +31,8 @@
     "scripts/module.mjs"
   ],
   "styles": [
-    "styles/alchemy.css"
+    "styles/alchemy.css",
+    "styles/theme-and-cards.css"
   ],
   "socket": true,
   "readme": "README.md"

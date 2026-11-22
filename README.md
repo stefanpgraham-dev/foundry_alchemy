@@ -103,6 +103,15 @@ The authenticated active GM authorises actor ownership and ingredients, preventi
 - Retained manual reagent mapping for differently named Items and potion-output mapping for full effects.
 - Folder changes do not consume or delete character inventory Items.
 
+## v0.4.1 — theme-aware interface and readable recipe lists
+
+- Automatically follows Foundry V14's application light/dark theme. No module theme setting or reload is needed when the user changes their Foundry theme.
+- Adds a separate, last-loaded theme stylesheet with contrast-aware surfaces, borders, text, inputs, disabled states, buttons, and reagent/recipe editor panels.
+- Fixes **Brew Potions** and **GM Setup → Recipes** cards: each row has an explicit minimum height, separate title/metadata lines, a consistently centred icon, and no flex-shrink compression.
+- Provides a visible selected state, wrapped long item names, and right-aligned brewing quantity labels without covering the title.
+- Applies responsive card dimensions for narrower module windows.
+- These are interface-only changes. Stored world recipes, herb mappings, proficiency checks, inventory transactions and brewing probabilities are unchanged.
+
 ## v0.4.0 — world-editable alchemical recipes
 
 - Imported the existing 44 formulas into persistent world settings, maintaining recipe IDs.

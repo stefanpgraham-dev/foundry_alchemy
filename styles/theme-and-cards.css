@@ -1,0 +1,473 @@
+/*
+ * Alchemy Workbench v0.4.1 — theme-aware surfaces and accessible recipe cards.
+ * This stylesheet loads after alchemy.css. All selectors are scoped to the
+ * module application, and theme changes are handled automatically by CSS.
+ *
+ * Foundry V14 uses .theme-light and .theme-dark on body/application roots.
+ */
+.alchemy-workbench.awb-app {
+  color-scheme: dark;
+  --awb-ui-bg: #1b2023;
+  --awb-ui-panel: #303438;
+  --awb-ui-panel-alt: #383c40;
+  --awb-ui-panel-raised: #414044;
+  --awb-ui-field: #20262a;
+  --awb-ui-text: #f1eee6;
+  --awb-ui-muted: #c3c3c0;
+  --awb-ui-heading: #eed8a6;
+  --awb-ui-border: #706a60;
+  --awb-ui-border-subtle: #595851;
+  --awb-ui-accent: #e2bc75;
+  --awb-ui-accent-text: #2e2315;
+  --awb-ui-selected: #534a3b;
+  --awb-ui-hover: #47484a;
+  --awb-ui-disabled: #8d8e8c;
+  --awb-ui-good-bg: #254034;
+  --awb-ui-good-text: #cef0d2;
+  --awb-ui-good-line: #6c977a;
+  --awb-ui-warn-bg: #503c2c;
+  --awb-ui-warn-text: #ffe0ac;
+  --awb-ui-warn-line: #bb9055;
+  --awb-ui-soft-bg: #29363e;
+  --awb-ui-soft-line: #7794a7;
+  --awb-ui-tab-bg: #282d30;
+  --awb-ui-hero-start: #35302b;
+  --awb-ui-hero-end: #252b2e;
+  --awb-ui-focus: #edc987;
+}
+
+/* Match Foundry's user-selected light application theme. */
+body.theme-light .alchemy-workbench.awb-app,
+.alchemy-workbench.awb-app.theme-light,
+.theme-light .alchemy-workbench.awb-app {
+  color-scheme: light;
+  --awb-ui-bg: #eee9e1;
+  --awb-ui-panel: #fffdf9;
+  --awb-ui-panel-alt: #f5f1e9;
+  --awb-ui-panel-raised: #eae1d4;
+  --awb-ui-field: #ffffff;
+  --awb-ui-text: #282d32;
+  --awb-ui-muted: #4a535c;
+  --awb-ui-heading: #684a20;
+  --awb-ui-border: #928574;
+  --awb-ui-border-subtle: #c1b6a7;
+  --awb-ui-accent: #785521;
+  --awb-ui-accent-text: #ffffff;
+  --awb-ui-selected: #eee1c7;
+  --awb-ui-hover: #ece6dc;
+  --awb-ui-disabled: #6d7175;
+  --awb-ui-good-bg: #e0f0e6;
+  --awb-ui-good-text: #205438;
+  --awb-ui-good-line: #57926a;
+  --awb-ui-warn-bg: #fff0d6;
+  --awb-ui-warn-text: #73501f;
+  --awb-ui-warn-line: #bb8a44;
+  --awb-ui-soft-bg: #e0eaf0;
+  --awb-ui-soft-line: #7092a2;
+  --awb-ui-tab-bg: #e6dfd3;
+  --awb-ui-hero-start: #e8dfd0;
+  --awb-ui-hero-end: #f7f2e9;
+  --awb-ui-focus: #79551d;
+}
+
+/* Allow an explicitly dark application to win over a lighter containing UI. */
+.alchemy-workbench.awb-app.theme-dark {
+  color-scheme: dark;
+  --awb-ui-bg: #1b2023;
+  --awb-ui-panel: #303438;
+  --awb-ui-panel-alt: #383c40;
+  --awb-ui-panel-raised: #414044;
+  --awb-ui-field: #20262a;
+  --awb-ui-text: #f1eee6;
+  --awb-ui-muted: #c3c3c0;
+  --awb-ui-heading: #eed8a6;
+  --awb-ui-border: #706a60;
+  --awb-ui-border-subtle: #595851;
+  --awb-ui-accent: #e2bc75;
+  --awb-ui-accent-text: #2e2315;
+  --awb-ui-selected: #534a3b;
+  --awb-ui-hover: #47484a;
+  --awb-ui-disabled: #8d8e8c;
+  --awb-ui-good-bg: #254034;
+  --awb-ui-good-text: #cef0d2;
+  --awb-ui-good-line: #6c977a;
+  --awb-ui-warn-bg: #503c2c;
+  --awb-ui-warn-text: #ffe0ac;
+  --awb-ui-warn-line: #bb9055;
+  --awb-ui-soft-bg: #29363e;
+  --awb-ui-soft-line: #7794a7;
+  --awb-ui-tab-bg: #282d30;
+  --awb-ui-hero-start: #35302b;
+  --awb-ui-hero-end: #252b2e;
+  --awb-ui-focus: #edc987;
+}
+
+/* Primary shell, headers and navigation. */
+.alchemy-workbench.awb-app .window-content {
+  background: var(--awb-ui-bg);
+  color: var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-shell {
+  color: var(--awb-ui-text);
+  background: var(--awb-ui-bg);
+}
+.alchemy-workbench.awb-app .awb-shell h1,
+.alchemy-workbench.awb-app .awb-shell h3,
+.alchemy-workbench.awb-app .awb-eyebrow {
+  color: var(--awb-ui-heading) !important;
+}
+.alchemy-workbench.awb-app .awb-shell h2,
+.alchemy-workbench.awb-app .awb-shell strong,
+.alchemy-workbench.awb-app .awb-panel-heading h2 {
+  color: var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-hero {
+  background: linear-gradient(110deg,var(--awb-ui-hero-start),var(--awb-ui-hero-end));
+  border-bottom-color: var(--awb-ui-border);
+}
+.alchemy-workbench.awb-app .awb-hero p:not(.awb-eyebrow),
+.alchemy-workbench.awb-app .awb-muted,
+.alchemy-workbench.awb-app .awb-recipe-content small,
+.alchemy-workbench.awb-app .awb-item-row small,
+.alchemy-workbench.awb-app .awb-stock small,
+.alchemy-workbench.awb-app .awb-mapping-name small,
+.alchemy-workbench.awb-app .awb-herb-definition .awb-mapping-name small,
+.alchemy-workbench.awb-app .awb-recipe-ingredient small,
+.alchemy-workbench.awb-app .awb-recipe-drop small,
+.alchemy-workbench.awb-app .awb-folder-issue small,
+.alchemy-workbench.awb-app .awb-recipe-library-card small {
+  color: var(--awb-ui-muted);
+}
+.alchemy-workbench.awb-app .awb-hero-stats span {
+  background: var(--awb-ui-panel);
+  border-color: var(--awb-ui-border);
+  color: var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-hero-stats strong {
+  color: var(--awb-ui-heading);
+}
+.alchemy-workbench.awb-app .awb-tabs {
+  background: var(--awb-ui-tab-bg);
+  border-bottom-color: var(--awb-ui-border-subtle);
+}
+.alchemy-workbench.awb-app .awb-tabs button,
+.alchemy-workbench.awb-app .awb-subtabs button {
+  color: var(--awb-ui-muted);
+}
+.alchemy-workbench.awb-app .awb-tabs button.active,
+.alchemy-workbench.awb-app .awb-subtabs button.active {
+  color: var(--awb-ui-heading);
+  border-bottom-color: var(--awb-ui-accent);
+  background: var(--awb-ui-selected);
+}
+.alchemy-workbench.awb-app .awb-tabs button:hover,
+.alchemy-workbench.awb-app .awb-subtabs button:hover {
+  color: var(--awb-ui-text);
+  background: var(--awb-ui-hover);
+}
+
+/* Panels, controls and clear keyboard focus in both themes. */
+.alchemy-workbench.awb-app .awb-panel,
+.alchemy-workbench.awb-app .awb-recipe-library {
+  background: var(--awb-ui-panel);
+  border-color: var(--awb-ui-border-subtle);
+  color: var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-search-wrap,
+.alchemy-workbench.awb-app .awb-mapping-target,
+.alchemy-workbench.awb-app .awb-summary,
+.alchemy-workbench.awb-app .awb-stock,
+.alchemy-workbench.awb-app .awb-conversion,
+.alchemy-workbench.awb-app .awb-advanced,
+.alchemy-workbench.awb-app .awb-recipe-test-result,
+.alchemy-workbench.awb-app .awb-recipe-dry-run,
+.alchemy-workbench.awb-app .awb-folder-issue,
+.alchemy-workbench.awb-app .awb-folder-switches > div,
+.alchemy-workbench.awb-app .awb-folder-summary span {
+  background: var(--awb-ui-panel-alt);
+  color: var(--awb-ui-text);
+  border-color: var(--awb-ui-border-subtle);
+}
+.alchemy-workbench.awb-app .awb-recipe-drop,
+.alchemy-workbench.awb-app .awb-recipe-ingredient,
+.alchemy-workbench.awb-app .awb-mapping-card,
+.alchemy-workbench.awb-app .awb-item-row,
+.alchemy-workbench.awb-app .awb-choice,
+.alchemy-workbench.awb-app .awb-material {
+  background: var(--awb-ui-panel-alt) !important;
+  border-color: var(--awb-ui-border-subtle) !important;
+  color: var(--awb-ui-text) !important;
+}
+.alchemy-workbench.awb-app .awb-recipe-drop:hover,
+.alchemy-workbench.awb-app .awb-item-row:hover,
+.alchemy-workbench.awb-app .awb-choice:hover {
+  background: var(--awb-ui-hover) !important;
+  border-color: var(--awb-ui-border) !important;
+}
+.alchemy-workbench.awb-app .awb-choice.selected,
+.alchemy-workbench.awb-app .awb-item-row.selected {
+  background: var(--awb-ui-selected) !important;
+  border-color: var(--awb-ui-accent) !important;
+}
+.alchemy-workbench.awb-app .awb-recipe-drop > div,
+.alchemy-workbench.awb-app .awb-recipe-ingredient > span,
+.alchemy-workbench.awb-app .awb-recipe-editor,
+.alchemy-workbench.awb-app .awb-recipe-library-card > span {
+  color: var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-shell input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.alchemy-workbench.awb-app .awb-shell select,
+.alchemy-workbench.awb-app .awb-shell textarea,
+.alchemy-workbench.awb-app .awb-mapping-target input,
+.alchemy-workbench.awb-app .awb-advanced select,
+.alchemy-workbench.awb-app .awb-search-wrap input {
+  background: var(--awb-ui-field) !important;
+  color: var(--awb-ui-text) !important;
+  border: 1px solid var(--awb-ui-border) !important;
+  border-radius: 5px;
+  box-shadow: none;
+  opacity: 1;
+}
+.alchemy-workbench.awb-app .awb-search-wrap input {
+  background: transparent !important;
+  border: none !important;
+}
+.alchemy-workbench.awb-app input::placeholder,
+.alchemy-workbench.awb-app .awb-search-wrap input::placeholder {
+  color: var(--awb-ui-muted) !important;
+  opacity: 1;
+}
+.alchemy-workbench.awb-app .awb-shell :is(button,input,select,textarea,summary):focus-visible {
+  outline: 2px solid var(--awb-ui-focus) !important;
+  outline-offset: 2px;
+}
+.alchemy-workbench.awb-app .awb-shell button:not(.awb-primary):not(.awb-recipe-card):not(.awb-recipe-library-card):not(.awb-tabs button):not(.awb-subtabs button) {
+  color: var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-shell button.awb-primary {
+  background: var(--awb-ui-accent);
+  color: var(--awb-ui-accent-text);
+  border-color: var(--awb-ui-accent);
+}
+.alchemy-workbench.awb-app .awb-shell button.awb-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.alchemy-workbench.awb-app .awb-shell button:disabled,
+.alchemy-workbench.awb-app .awb-shell input:disabled,
+.alchemy-workbench.awb-app .awb-shell select:disabled {
+  color: var(--awb-ui-disabled) !important;
+  opacity: .75;
+  cursor: not-allowed;
+}
+.alchemy-workbench.awb-app .awb-tag {
+  background: var(--awb-ui-panel-raised);
+  border-color: var(--awb-ui-border);
+  color: var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-tag.awb-available,
+.alchemy-workbench.awb-app .awb-alert-good {
+  background: var(--awb-ui-good-bg);
+  color: var(--awb-ui-good-text);
+  border-color: var(--awb-ui-good-line);
+}
+.alchemy-workbench.awb-app .awb-tag.awb-warning,
+.alchemy-workbench.awb-app .awb-alert-warn {
+  background: var(--awb-ui-warn-bg);
+  color: var(--awb-ui-warn-text);
+  border-color: var(--awb-ui-warn-line);
+}
+.alchemy-workbench.awb-app .awb-alert:not(.awb-alert-good):not(.awb-alert-warn) {
+  background: var(--awb-ui-soft-bg);
+  color: var(--awb-ui-text);
+  border-color: var(--awb-ui-soft-line);
+}
+.alchemy-workbench.awb-app .awb-stepper output {
+  background: var(--awb-ui-field);
+  color: var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-stepper button {
+  background: var(--awb-ui-panel-raised);
+  color: var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-advanced summary,
+.alchemy-workbench.awb-app .awb-recipe-dry-run summary {
+  color: var(--awb-ui-heading);
+}
+.alchemy-workbench.awb-app .awb-summary-row > span,
+.alchemy-workbench.awb-app .awb-batch-control small,
+.alchemy-workbench.awb-app .awb-batch-control,
+.alchemy-workbench.awb-app .awb-recipe-overrides,
+.alchemy-workbench.awb-app .awb-recipe-library-tools {
+  color: var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-summary-row + .awb-summary-row,
+.alchemy-workbench.awb-app .awb-batch-control,
+.alchemy-workbench.awb-app .awb-bottom,
+.alchemy-workbench.awb-app .awb-subtabs {
+  border-color: var(--awb-ui-border-subtle);
+}
+.alchemy-workbench.awb-app .awb-folder-switches strong,
+.alchemy-workbench.awb-app .awb-folder-summary strong,
+.alchemy-workbench.awb-app .awb-item-row b,
+.alchemy-workbench.awb-app .awb-max {
+  color: var(--awb-ui-heading);
+}
+
+/* Shared responsive recipe-card system for Brew Potions and GM Recipes.
+ * Explicitly defeat core button height + flex-shrink compression.
+ */
+.alchemy-workbench.awb-app .awb-recipe-list,
+.alchemy-workbench.awb-app .awb-recipe-library-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+.alchemy-workbench.awb-app .awb-shell button.awb-recipe-card,
+.alchemy-workbench.awb-app .awb-shell button.awb-recipe-library-card {
+  display: grid !important;
+  align-items: center;
+  flex: 0 0 auto !important;
+  align-self: stretch;
+  width: 100%;
+  height: auto !important;
+  min-height: 76px !important;
+  max-height: none !important;
+  padding: 11px 12px !important;
+  column-gap: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--awb-ui-border-subtle);
+  background: var(--awb-ui-panel-alt);
+  color: var(--awb-ui-text) !important;
+  text-align: left;
+  line-height: 1.4 !important;
+  white-space: normal !important;
+  overflow: visible;
+  cursor: pointer;
+}
+.alchemy-workbench.awb-app .awb-shell button.awb-recipe-card {
+  grid-template-columns: 44px minmax(0,1fr) auto;
+}
+.alchemy-workbench.awb-app .awb-shell button.awb-recipe-library-card {
+  grid-template-columns: 44px minmax(0,1fr);
+}
+.alchemy-workbench.awb-app .awb-shell button.awb-recipe-card:hover,
+.alchemy-workbench.awb-app .awb-shell button.awb-recipe-library-card:hover {
+  background: var(--awb-ui-hover);
+  border-color: var(--awb-ui-border);
+}
+.alchemy-workbench.awb-app .awb-shell button.awb-recipe-card.selected,
+.alchemy-workbench.awb-app .awb-shell button.awb-recipe-library-card.selected {
+  background: var(--awb-ui-selected);
+  border-color: var(--awb-ui-accent);
+  box-shadow: inset 3px 0 0 var(--awb-ui-accent);
+}
+.alchemy-workbench.awb-app .awb-shell button.awb-recipe-card.disabled {
+  opacity: .65;
+  cursor: not-allowed;
+}
+.alchemy-workbench.awb-app .awb-shell button.awb-recipe-card > img.awb-art,
+.alchemy-workbench.awb-app .awb-shell button.awb-recipe-library-card > img.awb-art {
+  grid-column: 1;
+  width: 44px !important;
+  height: 44px !important;
+  max-width: 44px;
+  max-height: 44px;
+  object-fit: cover;
+  border-radius: 7px;
+  flex: 0 0 44px;
+  margin: 0;
+  position: static;
+  align-self: center;
+}
+.alchemy-workbench.awb-app .awb-recipe-card .awb-recipe-content,
+.alchemy-workbench.awb-app .awb-recipe-library-card > span {
+  grid-column: 2;
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+  align-self: center;
+  align-items: flex-start;
+  min-width: 0;
+  width: 100%;
+  height: auto !important;
+  gap: 5px;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  white-space: normal;
+}
+.alchemy-workbench.awb-app .awb-recipe-card .awb-recipe-content strong,
+.alchemy-workbench.awb-app .awb-recipe-library-card > span > strong {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  color: var(--awb-ui-text) !important;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.alchemy-workbench.awb-app .awb-recipe-card .awb-recipe-content small,
+.alchemy-workbench.awb-app .awb-recipe-library-card > span > small {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  color: var(--awb-ui-muted) !important;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+.alchemy-workbench.awb-app .awb-recipe-card > .awb-max {
+  grid-column: 3;
+  justify-self: end;
+  align-self: center;
+  padding: 0 0 0 4px;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--awb-ui-heading) !important;
+}
+.alchemy-workbench.awb-app .awb-recipe-library-card[hidden],
+.alchemy-workbench.awb-app .awb-recipe-card[hidden] {
+  display: none !important;
+}
+
+/* Narrow windows: preserve line separation even if the title wraps twice. */
+@media (max-width: 850px) {
+  .alchemy-workbench.awb-app .awb-recipe-workspace {
+    grid-template-columns: minmax(0,1fr);
+  }
+  .alchemy-workbench.awb-app .awb-recipe-list,
+  .alchemy-workbench.awb-app .awb-recipe-library-list {
+    gap: 8px;
+  }
+}
+@media (max-width: 540px) {
+  .alchemy-workbench.awb-app .awb-shell button.awb-recipe-card,
+  .alchemy-workbench.awb-app .awb-shell button.awb-recipe-library-card {
+    min-height: 78px !important;
+    padding: 10px !important;
+    column-gap: 9px;
+  }
+  .alchemy-workbench.awb-app .awb-shell button.awb-recipe-card {
+    grid-template-columns: 38px minmax(0,1fr) auto;
+  }
+  .alchemy-workbench.awb-app .awb-shell button.awb-recipe-library-card {
+    grid-template-columns: 38px minmax(0,1fr);
+  }
+  .alchemy-workbench.awb-app .awb-shell button.awb-recipe-card > img.awb-art,
+  .alchemy-workbench.awb-app .awb-shell button.awb-recipe-library-card > img.awb-art {
+    width: 38px !important;
+    height: 38px !important;
+  }
+}
