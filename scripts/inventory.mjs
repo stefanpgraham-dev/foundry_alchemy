@@ -110,7 +110,8 @@ export async function applyInventory(actor, consumed, outputs, mappings) {
  }
  const sources=[];
  for(const out of staged.values()){
-  const data=await outputData(out.kind,out.id,mappings,out.name||'Crafted Potion');
+  // Only GM-derived transactions supply snapshots. Pending brews keep their original output effects.
+    const data=out.snapshot?structuredClone(out.snapshot):await outputData(out.kind,out.id,mappings,out.name||'Crafted Potion');
   sources.push({out,data,templateUuid:data.flags?.[MID]?.sourceUuid||'',id:out.id});
  }
  const updates=[];const created=[];let updated=false;

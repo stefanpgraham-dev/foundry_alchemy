@@ -1,8 +1,8 @@
 {
   "id": "alchemy-workbench",
   "title": "Alchemy Workbench",
-  "description": "Directory-driven alchemy: discover herbs and nine reagent types from world Item folders, craft batches and prepare reagents in Foundry VTT v14 / D&D 5e.",
-  "version": "0.3.0",
+  "description": "World-configurable alchemy with directory-driven herbs and reagents, editable potion recipes, safe pending brews and batch crafting for Foundry v14/D&D 5e.",
+  "version": "0.4.0",
   "authors": [
     {
       "name": "stefanpgraham-dev"

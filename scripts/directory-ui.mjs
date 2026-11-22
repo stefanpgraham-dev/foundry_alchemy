@@ -1,6 +1,7 @@
 /* GM folder setup and directory-based catalogue (Foundry v14). */
 import {itemFolders,folderLabel} from './directories.mjs';
 import {KEYS} from './engine.mjs';
+import {recipeEditorView,recipeEditorAction} from './recipe-ui.mjs';
 
 const esc=value=>foundry.utils.escapeHTML(String(value??''));
 const label=value=>String(value||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
@@ -54,10 +55,11 @@ export function directoryView(app){
  const nav='<div class="awb-subtabs">'+[
   ['directories','Directories'],['herbs','Herbs ('+app.services.herbs.length+')'],
   ['reagents','Reagents ('+Object.keys(map.reagents||{}).length+'/9)'],
-  ['outputs','Potion outputs ('+app.services.recipes.length+')']
+  ['recipes','Recipes ('+app.services.recipes.length+')']
  ].map(([id,name])=>'<button type="button" data-gm-kind="'+id+'" class="'+(kind===id?'active':'')+'">'+esc(name)+'</button>').join('')+'</div>';
  let body='';
- if(kind==='directories'){
+ if(kind==='recipes')body=recipeEditorView(app);
+ else if(kind==='directories'){
   body='<p class="awb-muted">Select World Item folders. Herbs must link to their permitted reagent Items in Description using Foundry content links. A refresh previews additions, changes and problems before replacing the world catalogue.</p>'+
    foldersBar+recursive+
    '<div class="awb-folder-summary">'+
@@ -113,6 +115,7 @@ export function directoryView(app){
 
 export async function directoryAction(app,action,target){
  if(!game.user.isGM)throw new Error('GM privileges required.');
+ if(action.startsWith('gm-recipe-'))return recipeEditorAction(app,action,target);
  if(action==='gm-open-item'){
   const doc=target.dataset.uuid?await fromUuid(target.dataset.uuid):null;
   if(doc?.sheet)doc.sheet.render(true);

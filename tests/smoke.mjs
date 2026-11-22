@@ -134,9 +134,14 @@ console.log(`Alchemy Workbench smoke tests passed: ${checks} assertions; herb ca
 const hooks={};
 globalThis.Hooks={once(name,fn){hooks[name]=fn;},on(){}};
 const moduleEntry={};const registered=[];let socketChannel='',socketHandler;
+let startupLibrary={initialized:false,recipes:[]};
 globalThis.game={
  modules:new Map([['alchemy-workbench',moduleEntry]]),
- settings:{register:(id,key,config)=>registered.push({id,key,config}),get:(_id,key)=>key==='herbCatalog'?herbs:key==='mappings'?{reagents:{},herbs:{},outputs:{}}:{issues:[]}},
+ settings:{
+    register:(id,key,config)=>registered.push({id,key,config}),
+    get:(_id,key)=>key==='herbCatalog'?herbs:key==='recipeLibrary'?startupLibrary:key==='mappings'?{reagents:{},herbs:{},outputs:{}}:{issues:[]},
+    set:async(_id,key,value)=>{if(key==='recipeLibrary')startupLibrary=value;return value;}
+  },
  system:{id:'dnd5e'},
  socket:{on:(id,fn)=>{socketChannel=id;socketHandler=fn;}},
  items:{contents:[],get:id=>templates[`Item.${id}`]||null}
@@ -151,9 +156,12 @@ globalThis.fetch=async url=>{
 await import('../scripts/module.mjs');
 check(typeof hooks.init==='function'&&typeof hooks.ready==='function','Foundry startup hooks registered');
 await hooks.init();
-check(registered.length===5,'world directory configuration, catalogue, report, mappings and pending settings registered');
+check(registered.length===6,'world recipe, directory, catalogue, report, mappings and pending settings registered');
 check(typeof moduleEntry.api.open==='function'&&typeof moduleEntry.api.setup==='function','UI API available');
+game.user={id:'gm',isGM:true};
 await hooks.ready();
+check(startupLibrary.initialized&&startupLibrary.recipes.length===44,'first GM startup seeds 44 world-editable recipes');
+check(startupLibrary.recipes.every(r=>r.source==='default'),'default recipe source metadata is retained');
 check(moduleEntry.api.getRecipes().length===44&&moduleEntry.api.getHerbs().length===1,'recipes and world herb catalogue load in ready hook');
 check(socketChannel==='module.alchemy-workbench','module socket event registered');
 // A drag-copied World Item has a new actor UUID and may lack flags. Name fallback must still identify it.
@@ -174,7 +182,7 @@ const mismatched={...mappedCopies,reagents:{common_curative:'Item.another-world-
 check(!identity(copied,'Item.another-world-item','common_curative'),'old category source flag must not impersonate an unrelated reagent template');
 check(inventoryAudit(actorCopied,{...mappedCopies,reagents:{}},herbs).unmapped.length===1,'inventory audit identifies unmatched copies');
 const {AlchemyWorkbench}=await import('../scripts/workbench.mjs');
-const uiServices={recipes,herbs,mappings:()=>mappedCopies,submit:async()=>'',saveMappings:async()=>0,pending:async()=>null,brewingEligibility:()=>({ok:true,errors:[]}),directories:()=>({herbFolderId:'',reagentFolderId:'',includeSubfolders:true}),directoryReport:()=>({issues:[]})};
+const uiServices={recipes:startupLibrary.recipes,defaultRecipes:recipes,herbs,mappings:()=>mappedCopies,submit:async()=>'',saveMappings:async()=>0,saveRecipes:async()=>0,pending:async()=>null,brewingEligibility:()=>({ok:true,errors:[]}),directories:()=>({herbFolderId:'',reagentFolderId:'',includeSubfolders:true}),directoryReport:()=>({issues:[]})};
 game.user={id:'gm',isGM:true};
 const panel=new AlchemyWorkbench(actorCopied,uiServices);
 const html=await panel._renderHTML();
@@ -190,6 +198,12 @@ refinePanel.tab='refine';
 const refineHtml=await refinePanel._renderHTML();
 check(refineHtml.includes('data-refine-tier="common"')&&!refineHtml.includes('data-refine-tier="rare"'),'Rare reagent refinement UI never offers Rare as a target');
 
+const editingPanel=new AlchemyWorkbench(actorCopied,uiServices);
+editingPanel.tab='gm';editingPanel.gmKind='recipes';
+const editHtml=await editingPanel._renderHTML();
+check(editHtml.includes('data-recipe-drop="output"')&&editHtml.includes('data-recipe-drop="reagent"'),'recipe editor includes Item drop zones');
+check(editHtml.includes('data-action="gm-recipe-save"'),'GM can save edited recipes');
+check(editHtml.includes('Import Missing Defaults')&&editHtml.includes('Export JSON'),'recipe library supports reimport and JSON export');
 globalThis.fetch=fetchNative;
 console.log('Foundry startup mock passed.');
 
@@ -236,8 +250,13 @@ game.user=gmUser;
 game.users={filter:fn=>activeUsers.filter(fn),get:id=>activeUsers.find(x=>x.id===id)};
 game.actors={get:id=>id==='test'?actorGame:null};
 game.socket.emit=(channel,p)=>{responses.push(p)};
-game.settings.get=(id,key)=>key==='mappings'?mappings:pendingRecords;
-game.settings.set=async(id,key,value)=>{if(key==='pending')pendingRecords=value;else if(key==='mappings')mappings=value;return value;};
+game.settings.get=(id,key)=>key==='mappings'?mappings:key==='pending'?pendingRecords:key==='recipeLibrary'?startupLibrary:{issues:[]};
+game.settings.set=async(id,key,value)=>{
+ if(key==='pending')pendingRecords=value;
+ else if(key==='mappings')mappings=value;
+ else if(key==='recipeLibrary')startupLibrary=value;
+ return value;
+};
 function eventuallyResponse(){
  return new Promise((resolve,reject)=>{const started=Date.now();const poll=()=>{if(responses.length)return resolve(responses.shift());if(Date.now()-started>2000)return reject(Error('No response'));setTimeout(poll,1);};poll();});
 }
@@ -276,11 +295,18 @@ reply=await eventuallyResponse();
 check(reply.ok===true,'double-success after failure enters extra-time branch');
 check(postedRolls.length===3,'initial and two independent d20s sent to chat');
 check(pendingRecords.length===1&&pendingRecords[0].status==='ready','pending batch recorded and ready for GM approval');
+check(pendingRecords[0].outputSnapshot?.name==='Potion of Healing','pending brew preserves the original output Item data');
+check(pendingRecords[0].recipeSnapshot?.cost.common_curative===3,'pending brew preserves recipe requirements');
 check(!actorPending.items.get('p'),'pending batch ingredients are consumed exactly once');
+// Removing a recipe after brewing begins must not change or prevent a pending reward.
+const earlierLibrary=moduleEntry.api.getRecipes();
+await moduleEntry.api.saveRecipes(earlierLibrary.filter(r=>r.id!=='potion-of-healing'));
+check(!moduleEntry.api.getRecipes().some(r=>r.id==='potion-of-healing'),'recipe can be removed without erasing a pending brew');
 socketHandler({type:'request',nonce:'finish',mode:'finish',actorId:'test',pendingId:pendingRecords[0].id},'gm');
 await new Promise(resolve=>setTimeout(resolve,20));
 check(pendingRecords.length===0,'GM completes pending batch and clears it');
-check(actorPending.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===1),'pending batch completion awards one potion');
+check(actorPending.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===1),'pending completion awards original potion even after deletion');
+await moduleEntry.api.saveRecipes(earlierLibrary);
 console.log('Multiplayer request / brewing / pending-completion mocks passed.');
 // Two successful follow-ups on initial failure trigger a live player choice, not a preselected dropdown.
 const actorChoice=equipBrewer(new Actor(new Item('choice','Common Curative','common_curative',3)));actorChoice.testUserPermission=()=>true;

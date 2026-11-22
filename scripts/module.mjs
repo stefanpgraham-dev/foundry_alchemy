@@ -1,7 +1,8 @@
 import {KEYS, TIERS, COLOURS, DC, HOURS,recipeTier,percentageYield,chanceSucceeds,classifyHerbs,assertQty} from './engine.mjs';
-import {MID,getQty,normal,setting,findMatchedInventory,findHerbs,markActorInventory,planBrew,planExtract,planDowngrade,applyInventory,changeOutputs,template} from './inventory.mjs';
+import {MID,getQty,normal,setting,findMatchedInventory,findHerbs,markActorInventory,planBrew,planExtract,planDowngrade,applyInventory,changeOutputs,template,outputData} from './inventory.mjs';
 import {AlchemyWorkbench} from './workbench.mjs';
 import {scanDirectories,defaultDirectoryConfig} from './directories.mjs';
+import {recipeDC,recipeHours,seedDefaults,validateLibrary} from './recipes.mjs';
 import {brewingEligibility,rollAlchemyToolCheck,naturalD20Result} from './eligibility.mjs';
 
 const DIALOG=()=>foundry.applications.api.DialogV2;
@@ -10,7 +11,7 @@ const slug=s=>String(s).replace(/_/g,' ');
 const actors=()=>game.actors.contents.filter(a=>a.testUserPermission(game.user,'OWNER'));
 const blankMappings=()=>({reagents:{},herbs:{},outputs:{}});
 const openWorkbenches=new Set();
-let recipes=[],herbs=[];
+let recipes=[],herbs=[],defaultRecipes=[];
 const locks=new Set(),waiting=new Map(),decisions=new Map();
 const SOCKET=`module.${MID}`;
 const pickGM=()=>game.users.filter(u=>u.active&&u.isGM).sort((a,b)=>a.id.localeCompare(b.id))[0];
@@ -40,7 +41,7 @@ async function selectActor(){
 }
 function workbench(actor){
  const app=new AlchemyWorkbench(actor,{
-  recipes,get herbs(){return herbs;},mappings:setting,submit:submitAction,saveMappings,
+  get recipes(){return recipes;},get defaultRecipes(){return defaultRecipes;},get herbs(){return herbs;},mappings:setting,submit:submitAction,saveMappings,saveRecipes,
   directories:()=>game.settings.get(MID,'directoryConfig'),
   directoryReport:()=>game.settings.get(MID,'directoryReport'),
   previewDirectories,refreshDirectories,pending:pendingDialog,brewingEligibility
@@ -88,8 +89,8 @@ async function refineDialog(actor){
  await submitAction({mode:'refine',actorId:actor.id,...result});
 }
 async function brewDialog(actor){
- const map=setting();const list=recipes.map(r=>({value:r.id,label:`${r.name} — ${recipeTier(r)} (DC ${DC[recipeTier(r)]})`}));
- const chosen=await wait('Alchemy — Select Recipe',`<div class="awb">${field('Recipe (all 44 available)',sel('recipe',list))}${field('Batch size',qtyInput(1,100))}${note('One brewing check for the full batch; brewing time does not increase with batch size.')}</div>`,[button('next','Choose Reagents',(e,b)=>({recipeId:b.form.elements.recipe.value,batch:Number(b.form.elements.quantity.value)}),true)]);
+ const map=setting();const list=recipes.filter(r=>r.enabled!==false).map(r=>({value:r.id,label:`${r.name} — ${recipeTier(r)} (DC ${recipeDC(r)})`}));
+ const chosen=await wait('Alchemy — Select Recipe',`<div class="awb">${field('Recipe',sel('recipe',list))}${field('Batch size',qtyInput(1,100))}${note('One brewing check for the full batch; brewing time does not increase with batch size.')}</div>`,[button('next','Choose Reagents',(e,b)=>({recipeId:b.form.elements.recipe.value,batch:Number(b.form.elements.quantity.value)}),true)]);
  if(!chosen)return;
  const recipe=recipeBy(chosen.recipeId),batch=assertQty(chosen.batch);
  if(!recipe)throw new Error('Unknown recipe.');
@@ -97,7 +98,7 @@ async function brewDialog(actor){
  const cost=Object.entries(recipe.cost).map(([k,v])=>`${batch*v} ${slug(k)}`).join(' · ');
  let plan;
  try{plan=planBrew(actor,recipe,batch,map,null,'highest');}catch(err){throw new Error(`${err.message} Required: ${cost}`);}
- const content=`<div class="awb"><p><strong>${esc(recipe.name)}</strong> × ${batch} · DC ${DC[recipeTier(recipe)]} · ${HOURS[recipeTier(recipe)]} hours</p><p><strong>Recipe cost:</strong> ${esc(cost)}</p>
+ const content=`<div class="awb"><p><strong>${esc(recipe.name)}</strong> × ${batch} · DC ${recipeDC(recipe)} · ${recipeHours(recipe)} hours</p><p><strong>Recipe cost:</strong> ${esc(cost)}</p>
  <details><summary>Eligible reagent stacks (uncheck to exclude)</summary>${listHtml(reagents.map(x=>`<label class="awb-check"><input type="checkbox" name="ingredient" value="${esc(x.id)}" checked>${esc(x.item.name)} × ${x.quantity} — ${esc(slug(x.key))}</label>`))}</details>
  <p><strong>Default allocation:</strong> ${esc(plan.consume.map(x=>`${actor.items.get(x.id)?.name} × ${x.quantity}`).join(', '))||'None'}</p>
  <p><strong>Default returned change:</strong> ${esc(fmt(changeOutputs(plan)))}</p>
@@ -108,10 +109,38 @@ async function brewDialog(actor){
  if(!response)return;
  // Recompute preview after player filters sources; no inventory change here.
  const selectedPlan=planBrew(actor,recipe,batch,map,response.selectedIds,response.change);
- const confirm=await DIALOG().confirm({window:{title:'Confirm Brewing'},content:`<div class="awb"><p>${esc(recipe.name)} × ${batch}</p><p>Consume: ${esc(selectedPlan.consume.map(x=>`${actor.items.get(x.id)?.name} × ${x.quantity}`).join(', '))}</p><p>Return change: ${esc(fmt(changeOutputs(selectedPlan)))}</p><p>Time: ${HOURS[recipeTier(recipe)]} hours. Reagents may be lost on failure.</p></div>`,yes:{label:'Roll & Consume'},no:{label:'Cancel'},rejectClose:false});
+ const confirm=await DIALOG().confirm({window:{title:'Confirm Brewing'},content:`<div class="awb"><p>${esc(recipe.name)} × ${batch}</p><p>Consume: ${esc(selectedPlan.consume.map(x=>`${actor.items.get(x.id)?.name} × ${x.quantity}`).join(', '))}</p><p>Return change: ${esc(fmt(changeOutputs(selectedPlan)))}</p><p>Time: ${recipeHours(recipe)} hours. Reagents may be lost on failure.</p></div>`,yes:{label:'Roll & Consume'},no:{label:'Cancel'},rejectClose:false});
  if(confirm)await submitAction({mode:'brew',actorId:actor.id,recipeId:recipe.id,batch,selectedIds:response.selectedIds,change:response.change,doublePass:response.doublePass});
 }
 
+async function saveRecipes(entries){
+ if(!game.user.isGM)throw new Error('Only a GM can edit the recipe library.');
+ const validated=validateLibrary(entries,{allowMissingOutput:true});
+ for(const r of validated){
+  if(r.source==='custom'&&r.enabled&&!r.outputUuid)throw new Error('Enabled custom recipe '+r.name+' requires a potion output Item.');
+  if(r.outputUuid && !await template(r.outputUuid))throw new Error('Missing potion output for '+r.name+': '+r.outputUuid);
+ }
+ const oldLibrary=structuredClone(game.settings.get(MID,'recipeLibrary'));
+ const oldMappings=structuredClone(setting()||blankMappings());
+ const outputMap=Object.fromEntries(validated.filter(r=>r.outputUuid).map(r=>[r.id,r.outputUuid]));
+ const updatedMappings={...oldMappings,outputs:outputMap};
+ try{
+  await game.settings.set(MID,'mappings',updatedMappings);
+  await game.settings.set(MID,'recipeLibrary',{initialized:true,recipes:validated});
+ }catch(err){
+  try{
+   await game.settings.set(MID,'mappings',oldMappings);
+   await game.settings.set(MID,'recipeLibrary',oldLibrary);
+  }catch(rollback){console.error(MID+': failed to roll back recipe settings',rollback);}
+  throw err;
+ }
+ recipes.splice(0,recipes.length,...validated);
+ for(const app of openWorkbenches)if(app?.rendered){
+  try{await app.render({force:true});}catch(error){console.warn(MID+': recipe UI refresh failed',error);}
+ }
+ ui.notifications.info('Alchemy: '+validated.length+' world recipes saved.');
+ return validated.length;
+}
 async function setupHub(){return hub({tab:'gm'});}
 async function saveMappings(kind,values){
  if(!game.user.isGM)throw new Error('GM access required.');
@@ -218,7 +247,7 @@ async function requestFailureChoice(actor,senderId){
  });
 }
 async function brewOutcome(actor,recipe,batch,{senderId,doublePass}={}){
- const tier=recipeTier(recipe),dc=DC[tier];
+ const tier=recipeTier(recipe),dc=recipeDC(recipe);
  const initial=await rollAlchemyToolCheck(actor,dc);
  const natural=naturalD20Result(initial);
  if(natural===20){
@@ -242,7 +271,7 @@ async function brewOutcome(actor,recipe,batch,{senderId,doublePass}={}){
  if(passes===0)return {status:'lost',produced:0,passes};
  if(passes===2){
   const choice=['extra','immediate'].includes(doublePass)?doublePass:await requestFailureChoice(actor,senderId);
-  if(choice==='extra')return {status:'pending',produced:0,passes,extraHours:HOURS[tier]/2};
+  if(choice==='extra')return {status:'pending',produced:0,passes,extraHours:recipeHours(recipe)/2};
  }
  const r=await roll('1d8','Partial yield — 1d8 × 10%',actor);
  const pct=r.total*10;
@@ -277,12 +306,12 @@ async function performAction(p,senderId){
   if(!game.users.get(senderId)?.isGM)throw new Error('Only the GM can complete pending brewing time.');
   const pending=game.settings.get(MID,'pending');const index=pending.findIndex(x=>x.id===p.pendingId&&x.actorId===actor.id);
   if(index<0 || pending[index].status!=='ready')throw new Error('Pending brew is not ready or already completed.');
-  const job=pending[index],recipe=recipeBy(job.recipeId);
-  if(!recipe)throw new Error('Recipe no longer exists.');
+  const job=pending[index],recipe=job.recipeSnapshot||recipeBy(job.recipeId);
+  if(!recipe && !job.outputSnapshot)throw new Error('Legacy pending brew output is missing; GM intervention required.');
   // Mark non-redeemable before the reward; a failed save must never enable duplicate completion.
   await game.settings.set(MID,'pending',pending.map(x=>x.id===job.id?{...x,status:'completing'}:x));
   try {
-   await applyInventory(actor,[],[{kind:'potion',id:recipe.id,name:recipe.name,quantity:job.batch}],map);
+   await applyInventory(actor,[],[{kind:'potion',id:job.recipeId,name:job.recipeName,quantity:job.batch,...(job.outputSnapshot?{snapshot:job.outputSnapshot}:{})}],map);
   }catch(err){
    // Reward transaction failed and rolled back, so allow a later retry.
    try{const current=game.settings.get(MID,'pending');await game.settings.set(MID,'pending',current.map(x=>x.id===job.id?{...x,status:'ready'}:x));}catch(e){console.error('Pending brew status restore failed',e);}
@@ -290,8 +319,8 @@ async function performAction(p,senderId){
   }
   // If removal fails, record stays non-redeemable; manual reconciliation is safer than double-awarding.
   await game.settings.set(MID,'pending',game.settings.get(MID,'pending').filter(x=>x.id!==job.id));
-  await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<p><strong>Alchemy completed:</strong> ${esc(recipe.name)} × ${job.batch}. Additional ${job.extraHours} hours elapsed.</p>`});
-  return `${recipe.name} × ${job.batch} awarded.`;
+  await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<p><strong>Alchemy completed:</strong> ${esc(job.recipeName)} × ${job.batch}. Additional ${job.extraHours} hours elapsed.</p>`});
+  return `${job.recipeName} × ${job.batch} awarded.`;
  }
  if(p.mode==='extract'){
   const plan=planExtract(actor,p.herbId,p.itemId,p.quantity,herbs,map,p.reagentKey);
@@ -307,6 +336,7 @@ async function performAction(p,senderId){
  }
  const recipe=recipeBy(p.recipeId),batch=assertQty(p.batch);
  if(!recipe)throw new Error('Unrecognised recipe.');
+ if(recipe.enabled===false)throw new Error('That recipe is disabled by the GM.');
  if((p.doublePass!==undefined&&!['immediate','extra'].includes(p.doublePass))||!['highest','common'].includes(p.change))throw new Error('Invalid brewing options.');
  if(!Array.isArray(p.selectedIds)||p.selectedIds.length>200||p.selectedIds.some(x=>typeof x!=='string'))throw new Error('Invalid ingredient selection.');
  const eligible=brewingEligibility(actor);
@@ -314,12 +344,14 @@ async function performAction(p,senderId){
  const plan=planBrew(actor,recipe,batch,map,p.selectedIds,p.change);
  // Verify all change output templates before taking any dice or inventory changes.
  for(const key of Object.keys(plan.return))if(!await template(map.reagents?.[key]))throw new Error(`Reagent change item is unmapped: ${key}`);
+ // Snapshot the exact output template before dice are rolled, protecting delayed rewards from later edits.
+ const outputSnapshot=await outputData('potion',recipe.id,map,recipe.name);
  const result=await brewOutcome(actor,recipe,batch,{senderId,doublePass:p.doublePass});
  const outputs=changeOutputs(plan);
- if(result.produced)outputs.push({kind:'potion',id:recipe.id,name:recipe.name,quantity:result.produced});
+ if(result.produced)outputs.push({kind:'potion',id:recipe.id,name:recipe.name,quantity:result.produced,snapshot:outputSnapshot});
  if(result.status==='pending'){
   const jobs=game.settings.get(MID,'pending');
-  const job={id:nonce(),actorId:actor.id,actorName:actor.name,recipeId:recipe.id,recipeName:recipe.name,batch,extraHours:result.extraHours,createdAt:Date.now(),status:'reserving'};
+  const job={id:nonce(),actorId:actor.id,actorName:actor.name,recipeId:recipe.id,recipeName:recipe.name,batch,extraHours:result.extraHours,createdAt:Date.now(),status:'reserving',recipeSnapshot:structuredClone(recipe),outputSnapshot};
   // Record as non-redeemable first. It becomes ready only after all ingredients were consumed.
   await game.settings.set(MID,'pending',[...jobs,job]);
   try {
@@ -334,7 +366,7 @@ async function performAction(p,senderId){
  }else await applyInventory(actor,plan.consume,outputs,map);
  const extra=result.status==='pending'?`Ready after an additional ${result.extraHours} hours; ingredients reserved/consumed.`:'';
  const outputItem=await template(map.outputs?.[recipe.id]);
- const art=outputItem?.img||'icons/consumables/potions/potion-bottle-corked-red.webp';
+ const art=outputSnapshot?.img||outputItem?.img||'icons/consumables/potions/potion-bottle-corked-red.webp';
  const outcomeLabels={critical:'Critical Success',success:'Successful Brew',partial:'Partial Success',pending:'Awaiting Extra Brewing Time',lost:'Failed Brew'};
  await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<article class="awb-chat awb-result awb-result-${esc(result.status)}"><header><img src="${esc(art)}" alt=""><div><small>ALCHEMICAL BREWING · ${esc(outcomeLabels[result.status]||result.status)}</small><h3>${esc(recipe.name)}</h3></div></header><div class="awb-result-counters"><span><strong>${batch}</strong> attempted</span><span><strong>${result.produced}</strong> produced</span></div>${extra?`<p>${esc(extra)}</p>`:''}<p><strong>Reagents returned:</strong> ${esc(fmt(changeOutputs(plan)))}</p>${result.bonusPct!==undefined?`<p><strong>Critical bonus:</strong> +${result.bonusPct}% — ${result.bonus} additional potions</p>`:''}${result.percent!==undefined?`<p><strong>Partial yield:</strong> ${result.percent}%</p>`:''}</article>`});
  return `${recipe.name}: ${result.status}; ${result.produced} potions made.${extra?' '+extra:''}`;
@@ -371,15 +403,20 @@ Hooks.once('init',()=>{
  game.settings.register(MID,'mappings',{name:'Alchemy item mappings',scope:'world',config:false,type:Object,default:blankMappings()});
  game.settings.register(MID,'directoryConfig',{name:'Alchemy item folders',scope:'world',config:false,type:Object,default:defaultDirectoryConfig()});
  game.settings.register(MID,'herbCatalog',{name:'Discovered herb catalogue',scope:'world',config:false,type:Array,default:[]});
+ game.settings.register(MID,'recipeLibrary',{name:'World recipe library',scope:'world',config:false,type:Object,default:{initialized:false,recipes:[]}});
  game.settings.register(MID,'directoryReport',{name:'Alchemy directory validation',scope:'world',config:false,type:Object,default:{issues:[],added:[],changed:[],removed:[],herbItems:0,reagentItems:0,validHerbs:0,mappedReagents:0}});
  game.settings.register(MID,'pending',{name:'Pending alchemy brews',scope:'world',config:false,type:Array,default:[]});
- const api={open:hub,setup:()=>hub({tab:'gm'}),legacySetup:setupHub,getRecipes:()=>structuredClone(recipes),getHerbs:()=>structuredClone(herbs),previewDirectories,refreshDirectories};
+ const api={open:hub,setup:()=>hub({tab:'gm'}),legacySetup:setupHub,getRecipes:()=>structuredClone(recipes),getDefaultRecipes:()=>structuredClone(defaultRecipes),saveRecipes,recipeTest:()=>hub({tab:'gm'}),getHerbs:()=>structuredClone(herbs),previewDirectories,refreshDirectories};
  game.modules.get(MID).api=api;
  Hooks.on('renderActorSheetV2',addSheetButton);
  Hooks.on('renderActorSheet',addSheetButton);
  Hooks.on('updateSetting',setting=>{
   if(setting.key===MID+'.herbCatalog')herbs=game.settings.get(MID,'herbCatalog')||[];
-  if([MID+'.herbCatalog',MID+'.mappings'].includes(setting.key)){
+  if(setting.key===MID+'.recipeLibrary'){
+   const data=game.settings.get(MID,'recipeLibrary');
+   if(data?.initialized)recipes.splice(0,recipes.length,...data.recipes);
+  }
+  if([MID+'.herbCatalog',MID+'.mappings',MID+'.recipeLibrary'].includes(setting.key)){
    for(const app of openWorkbenches){
     if(!app?.rendered)continue;
     void app.render({force:true}).catch(error=>console.warn(MID+': window refresh failed',error));
@@ -395,7 +432,16 @@ Hooks.once('ready',async()=>{
  if(game.system.id!=='dnd5e'){ui.notifications.warn('Alchemy Workbench requires the dnd5e system.');return;}
  try{
   const base=`modules/${MID}/data/`;
-  recipes=await fetch(`${base}recipes.json`).then(x=>{if(!x.ok)throw Error('Recipes missing');return x.json();});
+  defaultRecipes=await fetch(`${base}recipes.json`).then(x=>{if(!x.ok)throw Error('Default recipes missing');return x.json();});
+  const library=game.settings.get(MID,'recipeLibrary');
+  if(library?.initialized)recipes.splice(0,recipes.length,...validateLibrary(library.recipes,{allowMissingOutput:true}));
+  else{
+   const seeded=seedDefaults(defaultRecipes,setting()?.outputs||{});
+   recipes.splice(0,recipes.length,...seeded);
+   if(game.user.isGM){
+    await game.settings.set(MID,'recipeLibrary',{initialized:true,recipes:seeded});
+   }
+  }
   herbs=game.settings.get(MID,'herbCatalog')||[];
   game.socket.on(SOCKET,onSocket);
   ui.notifications.info('Alchemy Workbench ready. Open from any owned character sheet, or via the module API.',{permanent:false});

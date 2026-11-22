@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.3.0 — directory-driven herb and reagent catalogues.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.4.0 — fully editable, world-scoped recipe library.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -45,6 +45,28 @@ The scanner reads the Item UUIDs from the stored description, including legacy `
 
 Output Item mappings remain optional. Without one, the module awards a basic consumable without bespoke D&D 5e activities/effects. Pending extra-time brews remain manageable from **GM Setup → Pending brews**.
 
+## GM Recipe Library (v0.4.0)
+
+The 44 shipped formulas are imported once into a **world-scoped recipe library** on first GM startup. They are editable, not re-imported on every module update. Existing potion-output mappings from v0.3.0 are preserved during migration. Editing a formula affects only that world.
+
+Open **Alchemy → GM Setup → Recipes**:
+
+- **Drop a potion Item** onto **Drop potion Item to add a recipe** to create a new recipe, or press **New Recipe**. Drag any other World Item or compendium Item into the **Potion output** area to replace it.
+- **Drop reagent Items** into the ingredient area; the module maps each Item to its recognised category (Common/Rare/Exotic and Curative/Poisonous/Reactive). Repeated drops increase the quantity. Alternatively, use **Add reagent** and edit the quantity numerically.
+- **Save Recipe** to publish changes. Players only see enabled formulas, and the normal workbench still shows only recipes supported by their carried reagents.
+- **Duplicate**, **Delete**, and **Enable/Disable** are available. For shipped formulas, **Restore Default Formula** resets ingredient quantities and brewing settings while keeping the mapped output Item.
+- **Import Missing Defaults** restores deleted shipped formulas without overwriting edited recipes.
+- Search and filter recipes by status, origin or mapping warnings; sort by name or reagent tier.
+- **Custom DC and brewing-time overrides** are optional. Without overrides, the highest required reagent determines DC (10/12/14) and hours (2/4/6). One brewing check and the same brewing time apply to every batch size.
+- **Test current inventory** checks an example batch without rolling dice, changing Items or advancing time. It lists required reagents, actual consumption, available substitutions and change.
+- **Export JSON / Import JSON** transfers formulas across worlds. Imports offer **Add Missing**, **Update & Add**, or **Replace All**, with an additional confirmation before replacing. Exported reagent categories are portable. An output Item UUID that cannot be resolved in the destination world is matched by name if unambiguous; otherwise that recipe is disabled until the GM drops in an appropriate output Item.
+
+Existing default recipes can function without a linked potion Item using the pre-existing basic-consumable fallback. New custom recipes require a real output Item before they can be enabled.
+
+**Pending brew safety:** When a brew requires additional time, the GM stores the complete recipe and a snapshot of the output Item. Editing/deleting the formula or changing the output mapping later will not alter that pending reward. Pending jobs created by earlier releases without a snapshot retain the best-effort legacy lookup.
+
+**Backups and limitations:** Before first updating to v0.4.0, back up the Foundry world. Automated simulation tests exercise recipe validation, migration, import/export, dry runs and pending-brew snapshots. The drag-and-drop UI and true multiplayer flows still need testing inside Foundry v14.
+
 ## Rules
 
 - **Reagents:** Three colours (Curative, Poisonous, Reactive), three tiers (Common, Rare, Exotic), nine mapped item types.
@@ -80,3 +102,11 @@ The authenticated active GM authorises actor ownership and ingredients, preventi
 - GM library search/filter/sort and player herb-search/filter/sort controls.
 - Retained manual reagent mapping for differently named Items and potion-output mapping for full effects.
 - Folder changes do not consume or delete character inventory Items.
+
+## v0.4.0 — world-editable alchemical recipes
+
+- Imported the existing 44 formulas into persistent world settings, maintaining recipe IDs.
+- Added GM drag-and-drop recipe editing, optional difficulty/time overrides, duplication, disabling and default restoration.
+- Added JSON recipe-library export/import and a safe no-roll recipe test.
+- Saved output Item and recipe snapshots on pending brews, independent of subsequent edits.
+- Added regression tests for formula migration, invalid ingredients, and completing delayed brews after recipe deletion.
