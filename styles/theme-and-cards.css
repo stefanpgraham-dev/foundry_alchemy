@@ -471,3 +471,416 @@ body.theme-light .alchemy-workbench.awb-app,
     height: 38px !important;
   }
 }
+
+
+/* v0.4.2 — complete light/dark pass and consistent inventory cards.
+   CSS variables above already follow Foundry's current theme. This pass
+   intentionally covers the controls/screens missed in v0.4.1. */
+
+/* Same non-shrinking grid pattern for Prepare Herbs, Refine Reagents,
+   reagent inventory and unmapped-item audit. Foundry's button dimensions
+   otherwise override the content-driven height of these rows. */
+.alchemy-workbench.awb-app .awb-item-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+.alchemy-workbench.awb-app .awb-shell .awb-item-list > .awb-item-row {
+  display: grid !important;
+  grid-template-columns: 44px minmax(0,1fr) auto;
+  align-items: center;
+  flex: 0 0 auto !important;
+  align-self: stretch;
+  width: 100%;
+  height: auto !important;
+  min-height: 76px !important;
+  max-height: none !important;
+  padding: 11px 12px !important;
+  column-gap: 12px;
+  border: 1px solid var(--awb-ui-border-subtle) !important;
+  border-radius: 8px;
+  background: var(--awb-ui-panel-alt) !important;
+  color: var(--awb-ui-text) !important;
+  text-align: left;
+  white-space: normal !important;
+  line-height: 1.4 !important;
+  overflow: visible;
+}
+.alchemy-workbench.awb-app .awb-shell button.awb-item-row:hover {
+  background: var(--awb-ui-hover) !important;
+  border-color: var(--awb-ui-border) !important;
+}
+.alchemy-workbench.awb-app .awb-shell button.awb-item-row.selected {
+  background: var(--awb-ui-selected) !important;
+  border-color: var(--awb-ui-accent) !important;
+  box-shadow: inset 3px 0 0 var(--awb-ui-accent);
+}
+.alchemy-workbench.awb-app .awb-shell .awb-item-list > .awb-item-row > img.awb-art {
+  grid-column: 1;
+  align-self: center;
+  display: block;
+  width: 44px !important;
+  height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  margin: 0;
+  object-fit: cover;
+  border: 1px solid var(--awb-ui-border);
+  border-radius: 7px;
+  position: static;
+}
+.alchemy-workbench.awb-app .awb-shell .awb-item-list > .awb-item-row > span {
+  grid-column: 2;
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+  width: 100%;
+  height: auto !important;
+  padding: 0;
+  margin: 0;
+  gap: 5px;
+  white-space: normal;
+  overflow: visible;
+}
+.alchemy-workbench.awb-app .awb-shell .awb-item-list > .awb-item-row > span > strong {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  color: var(--awb-ui-text) !important;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.35 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+.alchemy-workbench.awb-app .awb-shell .awb-item-list > .awb-item-row > span > small {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  color: var(--awb-ui-muted) !important;
+  font-size: 11px;
+  line-height: 1.45 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+.alchemy-workbench.awb-app .awb-shell .awb-item-list > .awb-item-row > b {
+  grid-column: 3;
+  justify-self: end;
+  align-self: center;
+  padding-left: 5px;
+  margin: 0;
+  color: var(--awb-ui-heading) !important;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.alchemy-workbench.awb-app .awb-shell .awb-item-list > .awb-item-row[hidden] {
+  display: none !important;
+}
+
+/* Search boxes should have ONE border, on their enclosing label, rather
+   than a nested Foundry input border creating the double-outline seen in
+   the Prepare Herbs screenshot. */
+.alchemy-workbench.awb-app .awb-search-wrap,
+.alchemy-workbench.awb-app .awb-library-toolbar .awb-search-wrap {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  background: var(--awb-ui-field);
+  color: var(--awb-ui-muted);
+  border: 1px solid var(--awb-ui-border) !important;
+  border-radius: 7px;
+  box-shadow: none !important;
+}
+.alchemy-workbench.awb-app .awb-shell .awb-search-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100% !important;
+  height: auto !important;
+  padding: 7px 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  color: var(--awb-ui-text) !important;
+  box-shadow: none !important;
+}
+.alchemy-workbench.awb-app .awb-search-wrap:focus-within {
+  outline: 2px solid var(--awb-ui-focus);
+  outline-offset: 2px;
+}
+
+/* All standard toolbars — previously hard-coded to dark backgrounds.
+   Explicit normal/hover/disabled states avoid dark-on-dark buttons in
+   the light theme or barely visible buttons in dark mode. */
+.alchemy-workbench.awb-app .awb-library-toolbar > button,
+.alchemy-workbench.awb-app .awb-folder-switches button,
+.alchemy-workbench.awb-app .awb-gm .awb-panel-heading > button,
+.alchemy-workbench.awb-app .awb-folder-issue > button,
+.alchemy-workbench.awb-app .awb-herb-definition > button,
+.alchemy-workbench.awb-app .awb-recipe-library-head > button:not(.awb-primary),
+.alchemy-workbench.awb-app .awb-recipe-library-tools > button,
+.alchemy-workbench.awb-app .awb-recipe-toolbar > button:not(.awb-primary),
+.alchemy-workbench.awb-app .awb-recipe-palette > button,
+.alchemy-workbench.awb-app .awb-recipe-ingredient > button,
+.alchemy-workbench.awb-app .awb-recipe-dry-run > button,
+.alchemy-workbench.awb-app .awb-recipe-editor > button,
+.alchemy-workbench.awb-app .awb-empty-state > button,
+.alchemy-workbench.awb-app .awb-recipe-import {
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid var(--awb-ui-border) !important;
+  border-radius: 6px;
+  background: var(--awb-ui-panel-raised) !important;
+  color: var(--awb-ui-text) !important;
+  font-size: 12px;
+  line-height: 1.35;
+  cursor: pointer;
+  box-shadow: none;
+}
+.alchemy-workbench.awb-app .awb-library-toolbar > button:hover:not(:disabled),
+.alchemy-workbench.awb-app .awb-folder-switches button:hover:not(:disabled),
+.alchemy-workbench.awb-app .awb-gm .awb-panel-heading > button:hover:not(:disabled),
+.alchemy-workbench.awb-app .awb-folder-issue > button:hover:not(:disabled),
+.alchemy-workbench.awb-app .awb-herb-definition > button:hover:not(:disabled),
+.alchemy-workbench.awb-app .awb-recipe-library-tools > button:hover:not(:disabled),
+.alchemy-workbench.awb-app .awb-recipe-toolbar > button:hover:not(:disabled),
+.alchemy-workbench.awb-app .awb-recipe-palette > button:hover:not(:disabled),
+.alchemy-workbench.awb-app .awb-recipe-ingredient > button:hover:not(:disabled),
+.alchemy-workbench.awb-app .awb-recipe-dry-run > button:hover:not(:disabled),
+.alchemy-workbench.awb-app .awb-recipe-import:hover {
+  background: var(--awb-ui-hover) !important;
+  border-color: var(--awb-ui-accent) !important;
+}
+.alchemy-workbench.awb-app .awb-recipe-toolbar > button.awb-danger,
+.alchemy-workbench.awb-app .awb-recipe-ingredient > button.awb-danger {
+  color: var(--awb-ui-warn-text) !important;
+  border-color: var(--awb-ui-warn-line) !important;
+  background: var(--awb-ui-warn-bg) !important;
+}
+.alchemy-workbench.awb-app .awb-shell button:disabled,
+.alchemy-workbench.awb-app .awb-shell input:disabled,
+.alchemy-workbench.awb-app .awb-shell select:disabled {
+  opacity: .62;
+  cursor: not-allowed !important;
+}
+.alchemy-workbench.awb-app .awb-shell button:not(:disabled):focus-visible,
+.alchemy-workbench.awb-app .awb-shell input:focus-visible,
+.alchemy-workbench.awb-app .awb-shell select:focus-visible {
+  outline: 2px solid var(--awb-ui-focus) !important;
+  outline-offset: 2px;
+}
+
+/* Prepare Herbs filters, brew/inventory labels, reagent selection,
+   and unconfigured-world empty states. */
+.alchemy-workbench.awb-app .awb-switch,
+.alchemy-workbench.awb-app .awb-directory-recursive,
+.alchemy-workbench.awb-app .awb-recipe-overrides,
+.alchemy-workbench.awb-app .awb-recipe-dry-run,
+.alchemy-workbench.awb-app .awb-recipe-import,
+.alchemy-workbench.awb-app .awb-folder-switches span,
+.alchemy-workbench.awb-app .awb-folder-summary span,
+.alchemy-workbench.awb-app .awb-folder-issue,
+.alchemy-workbench.awb-app .awb-choice,
+.alchemy-workbench.awb-app .awb-center,
+.alchemy-workbench.awb-app .awb-drop-indicator,
+.alchemy-workbench.awb-app .awb-field > span,
+.alchemy-workbench.awb-app .awb-batch-control,
+.alchemy-workbench.awb-app .awb-batch-control small,
+.alchemy-workbench.awb-app .awb-recipe-editor > p,
+.alchemy-workbench.awb-app .awb-advanced,
+.alchemy-workbench.awb-app .awb-ingredient-picks,
+.alchemy-workbench.awb-app .awb-empty,
+.alchemy-workbench.awb-app .awb-empty-state,
+.alchemy-workbench.awb-app .awb-empty-state p,
+.alchemy-workbench.awb-app .awb-gm .awb-panel-heading p {
+  color: var(--awb-ui-text) !important;
+}
+.alchemy-workbench.awb-app .awb-empty,
+.alchemy-workbench.awb-app .awb-empty-state p,
+.alchemy-workbench.awb-app .awb-recipe-editor > p.awb-muted,
+.alchemy-workbench.awb-app .awb-gm .awb-panel-heading p,
+.alchemy-workbench.awb-app .awb-folder-issue small,
+.alchemy-workbench.awb-app .awb-folder-switches span,
+.alchemy-workbench.awb-app .awb-batch-control small {
+  color: var(--awb-ui-muted) !important;
+}
+.alchemy-workbench.awb-app .awb-library-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.alchemy-workbench.awb-app .awb-library-toolbar .awb-search-wrap {
+  flex: 1 1 195px;
+  margin: 0;
+}
+.alchemy-workbench.awb-app .awb-library-toolbar > button {
+  flex: 0 0 auto;
+  white-space: normal;
+}
+.alchemy-workbench.awb-app .awb-folder-switches > div {
+  background: var(--awb-ui-panel-alt);
+  color: var(--awb-ui-text);
+  border: 1px solid var(--awb-ui-border-subtle);
+}
+.alchemy-workbench.awb-app .awb-folder-summary > span {
+  background: var(--awb-ui-panel-alt);
+  border: 1px solid var(--awb-ui-border-subtle);
+}
+.alchemy-workbench.awb-app .awb-folder-summary strong,
+.alchemy-workbench.awb-app .awb-folder-switches strong,
+.alchemy-workbench.awb-app .awb-material > span:last-child,
+.alchemy-workbench.awb-app .awb-choice strong,
+.alchemy-workbench.awb-app .awb-drop-indicator {
+  color: var(--awb-ui-heading) !important;
+}
+.alchemy-workbench.awb-app .awb-material > strong,
+.alchemy-workbench.awb-app .awb-stock strong,
+.alchemy-workbench.awb-app .awb-result strong,
+.alchemy-workbench.awb-app .awb-recipe-ingredient strong {
+  color: var(--awb-ui-text) !important;
+}
+.alchemy-workbench.awb-app .awb-recipe-import {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  width: auto;
+  min-width: 0;
+}
+.alchemy-workbench.awb-app .awb-recipe-import input[type="file"] {
+  max-width: 100%;
+  min-width: 0;
+  color: var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-recipe-library-tools small {
+  color: var(--awb-ui-muted);
+}
+.alchemy-workbench.awb-app .awb-gm .awb-subtabs {
+  flex-wrap: wrap;
+}
+.alchemy-workbench.awb-app .awb-gm .awb-panel-heading {
+  flex-wrap: wrap;
+}
+.alchemy-workbench.awb-app .awb-mapping-card,
+.alchemy-workbench.awb-app .awb-folder-issue {
+  color: var(--awb-ui-text) !important;
+}
+.alchemy-workbench.awb-app .awb-mapping-target,
+.alchemy-workbench.awb-app .awb-mapping-target input {
+  background: var(--awb-ui-field) !important;
+  color: var(--awb-ui-text) !important;
+}
+.alchemy-workbench.awb-app .awb-recipe-drop {
+  color: var(--awb-ui-text) !important;
+  border-color: var(--awb-ui-border) !important;
+}
+.alchemy-workbench.awb-app .awb-recipe-drop:hover {
+  background: var(--awb-ui-hover) !important;
+  border-color: var(--awb-ui-accent) !important;
+}
+.alchemy-workbench.awb-app .awb-recipe-palette select,
+.alchemy-workbench.awb-app .awb-recipe-overrides input[type="number"],
+.alchemy-workbench.awb-app .awb-recipe-test-result,
+.alchemy-workbench.awb-app .awb-recipe-ingredient input[type="number"] {
+  color: var(--awb-ui-text);
+}
+
+/* The conversion/stock detail panels carry explicit dark-mode colours in
+   the base CSS; honour the same theme variables here. */
+.alchemy-workbench.awb-app .awb-stock,
+.alchemy-workbench.awb-app .awb-material,
+.alchemy-workbench.awb-app .awb-choice,
+.alchemy-workbench.awb-app .awb-summary,
+.alchemy-workbench.awb-app .awb-conversion {
+  background: var(--awb-ui-panel-alt) !important;
+  color: var(--awb-ui-text) !important;
+  border-color: var(--awb-ui-border-subtle) !important;
+}
+.alchemy-workbench.awb-app .awb-summary-row > span,
+.alchemy-workbench.awb-app .awb-stock small {
+  color: var(--awb-ui-muted) !important;
+}
+.alchemy-workbench.awb-app .awb-choice.selected,
+.alchemy-workbench.awb-app .awb-stock:hover {
+  background: var(--awb-ui-selected) !important;
+  border-color: var(--awb-ui-accent) !important;
+}
+
+/* Dice/result cards are outside the Workbench ApplicationV2 window, in
+   Foundry chat: give them their own theme palette. */
+.awb-chat.awb-result {
+  --awb-result-bg: #262a2b;
+  --awb-result-text: #f1eee6;
+  --awb-result-muted: #d7c29d;
+  --awb-result-stat-bg: #36393b;
+  --awb-result-border: #8c7654;
+  background: var(--awb-result-bg);
+  color: var(--awb-result-text);
+  border-color: var(--awb-result-border);
+}
+body.theme-light .awb-chat.awb-result,
+.theme-light .awb-chat.awb-result {
+  --awb-result-bg: #faf8f2;
+  --awb-result-text: #2b2c30;
+  --awb-result-muted: #68512a;
+  --awb-result-stat-bg: #ede5d9;
+  --awb-result-border: #a5967c;
+}
+.awb-chat.awb-result header h3,
+.awb-chat.awb-result p,
+.awb-chat.awb-result strong {
+  color: var(--awb-result-text);
+}
+.awb-chat.awb-result header small,
+.awb-chat.awb-result-counters strong {
+  color: var(--awb-result-muted);
+}
+.awb-chat.awb-result .awb-result-counters > span {
+  background: var(--awb-result-stat-bg);
+  color: var(--awb-result-text);
+}
+.awb-chat.awb-result .awb-result-counters > span > strong {
+  color: var(--awb-result-muted);
+}
+
+/* Responsive cards and toolbars, including the smallest Foundry window sizes. */
+@media (max-width: 740px) {
+  .alchemy-workbench.awb-app .awb-library-toolbar > button {
+    flex: 1 1 auto;
+  }
+  .alchemy-workbench.awb-app .awb-folder-switches {
+    grid-template-columns: minmax(0,1fr);
+  }
+  .alchemy-workbench.awb-app .awb-gm .awb-panel-heading {
+    align-items: flex-start;
+  }
+}
+@media (max-width: 540px) {
+  .alchemy-workbench.awb-app .awb-shell .awb-item-list > .awb-item-row {
+    grid-template-columns: 38px minmax(0,1fr) auto;
+    column-gap: 9px;
+    min-height: 78px !important;
+    padding: 10px !important;
+  }
+  .alchemy-workbench.awb-app .awb-shell .awb-item-list > .awb-item-row > img.awb-art {
+    width: 38px !important;
+    height: 38px !important;
+    max-width: 38px !important;
+    max-height: 38px !important;
+  }
+  .alchemy-workbench.awb-app .awb-library-toolbar .awb-search-wrap {
+    flex-basis: 100%;
+  }
+}

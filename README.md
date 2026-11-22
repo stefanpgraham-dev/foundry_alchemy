@@ -103,6 +103,19 @@ The authenticated active GM authorises actor ownership and ingredients, preventi
 - Retained manual reagent mapping for differently named Items and potion-output mapping for full effects.
 - Folder changes do not consume or delete character inventory Items.
 
+## v0.4.2 — full workbench theme audit
+
+This is a presentation-only fix following the light-theme review in Foundry v14:
+
+- **Refine Reagents** and **Prepare Herbs** item rows now use the same non-shrinking 76-pixel recipe cards used by Brew Potions and the GM Recipe Library. The icon, name, descriptive second line and stack quantity have separate columns and cannot overlap.
+- **Inventory** item rows use the same styling, including unidentified herb/reagent items in the audit list.
+- Corrected light/dark styling across **all five workbench tabs** and GM directories, herbs, reagents and recipe screens. Folder names, folder-selection controls, filter/sort/refresh buttons, recipe-editor controls, labels and empty states now use the theme palette.
+- Fixed double-bordered search inputs in Prepare Herbs and GM lists; keyboard focus remains visible.
+- Applied theme-appropriate colours to results sent to Foundry chat, which are outside the workbench window.
+- Added automated checks for key screen selectors, CSS structure and action-button contrast.
+
+No recipe formulas, inventory records, GM mappings, active brews or proficiency calculations are changed.
+
 ## v0.4.1 — theme-aware interface and readable recipe lists
 
 - Automatically follows Foundry V14's application light/dark theme. No module theme setting or reload is needed when the user changes their Foundry theme.
