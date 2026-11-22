@@ -1,6 +1,7 @@
 import {KEYS,TIERS,COLOURS,DC,HOURS,recipeTier,maximumCraftableBatch,availableRefinementTargets,planRefine} from './engine.mjs';
 import {getQty,findMatchedInventory,findHerbs,inventoryAudit,planBrew,setting,normal} from './inventory.mjs';
 import {captureWorkbenchViewport,restoreWorkbenchViewport} from './viewport.mjs';
+import {directoryView,directoryAction} from './directory-ui.mjs';
 
 const esc=value=>foundry.utils.escapeHTML(String(value??''));
 const label=key=>String(key).replaceAll('_',' ').replace(/\b\w/g,x=>x.toUpperCase());
@@ -30,7 +31,8 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     this.selectedHerbId=null;this.herbKey=null;this.herbQty=1;
     this.selectedRefineId=null;this.refineTier=null;this.refineQty=1;
     this.change='highest';this.selectedIds=null;
-    this.gmKind='reagents';this.gmSearch='';this.mappingDraft=null;
+    this.gmKind='directories';this.gmSearch='';this.gmFilter='all';this.gmSort='name';this.mappingDraft=null;this.directoryDraft=null;
+     this.herbQuery='';this.herbFilter='all';this.herbSort='name';
     this.busy=false;this.notice=null;
   }
   async _renderHTML(){return this._layout();}
@@ -125,11 +127,16 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     </div>`;
   }
   _extract(){
-    const plants=this._herbs();
+    const plants=this._herbs().filter(row=>(this.herbFilter==='all'||row.herb.rarity===this.herbFilter)&&row.item.name.toLowerCase().includes(this.herbQuery.toLowerCase())).sort((a,b)=>{
+       if(this.herbSort==='quantity')return b.quantity-a.quantity||a.item.name.localeCompare(b.item.name);
+       if(this.herbSort==='rarity')return ({common:0,rare:1,exotic:2}[a.herb.rarity]??3)-({common:0,rare:1,exotic:2}[b.herb.rarity]??3)||a.item.name.localeCompare(b.item.name);
+       return a.item.name.localeCompare(b.item.name);
+     });
     const selected=plants.find(x=>x.item.id===this.selectedHerbId)||plants[0];
     if(selected){this.selectedHerbId=selected.item.id;this.herbKey=selected.herb.reagents.includes(this.herbKey)?this.herbKey:selected.herb.reagents[0];this.herbQty=Math.max(1,Math.min(selected.quantity,this.herbQty));}
     return `<div class="awb-two-col"><section class="awb-panel"><div class="awb-panel-heading"><h2>Herb satchel</h2>${tag(`${plants.length} varieties`)}</div>
-    <div class="awb-item-list">${plants.map(({item,herb,quantity})=>`<button type="button" class="awb-item-row ${selected?.item.id===item.id?'selected':''}" data-herb="${esc(item.id)}">${icon(item.img,item.name)}<span><strong>${esc(item.name)}</strong><small>${esc(titleCase(herb.rarity))} · ${herb.reagents.length} property${herb.reagents.length===1?'':'ies'}</small></span><b>×${quantity}</b></button>`).join('')||'<p class="awb-empty">No mapped herbs are recognised.</p>'}</div></section>
+    <div class="awb-library-toolbar"><label class="awb-search-wrap"><i class="fas fa-search"></i><input data-search="herbs" value="${esc(this.herbQuery)}" placeholder="Search carried herbs…"></label><button type="button" data-action="herb-filter">Filter: ${esc(titleCase(this.herbFilter))}</button><button type="button" data-action="herb-sort">Sort: ${esc(titleCase(this.herbSort))}</button></div>
+     <div class="awb-item-list">${plants.map(({item,herb,quantity})=>`<button type="button" class="awb-item-row ${selected?.item.id===item.id?'selected':''}" data-herb="${esc(item.id)}">${icon(item.img,item.name)}<span><strong>${esc(item.name)}</strong><small>${esc(titleCase(herb.rarity))} · ${herb.reagents.length} property${herb.reagents.length===1?'':'ies'}</small></span><b>×${quantity}</b></button>`).join('')||'<p class="awb-empty">No mapped herbs are recognised.</p>'}</div></section>
     <section class="awb-panel awb-detail">${selected?`<div class="awb-detail-head">${icon(selected.item.img,selected.item.name,'awb-featured')}<div><p class="awb-eyebrow">Herbal extraction</p><h2>${esc(selected.item.name)}</h2><p>Choose exactly one reagent property per herb.</p></div></div>
       <h3>Extract as</h3><div class="awb-choice-grid">${selected.herb.reagents.map(k=>`<button type="button" data-herb-key="${esc(k)}" class="awb-choice ${k===this.herbKey?'selected':''}">${marker(k,1)}</button>`).join('')}</div>
       <div class="awb-batch-control"><div><strong>Herbs to process</strong><small>1 herb → 1 reagent, without a check</small></div><div class="awb-stepper"><button type="button" data-action="herb-minus" ${this.herbQty<=1?'disabled':''}>−</button><output>${this.herbQty}</output><button type="button" data-action="herb-plus" ${this.herbQty>=selected.quantity?'disabled':''}>+</button></div></div>
@@ -162,24 +169,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     <section class="awb-panel"><h2>Recognised herbs</h2><div class="awb-item-list">${herbs.map(x=>`<div class="awb-item-row">${icon(x.item.img,x.item.name)}<span><strong>${esc(x.item.name)}</strong><small>${esc(x.herb.reagents.map(label).join(' / '))}</small></span><b>×${x.quantity}</b></div>`).join('')||'<p class="awb-empty">None recognised.</p>'}</div>
     <h3>Items requiring a mapping review</h3><p class="awb-muted">These look like herbs or reagents but are not recognised. A source UUID, template name or saved category must match.</p><div class="awb-item-list">${relevant.map(x=>`<div class="awb-item-row">${icon(x.img,x.name)}<span><strong>${esc(x.name)}</strong><small>No matching saved mapping or source metadata</small></span><b>×${getQty(x)}</b></div>`).join('')||'<p class="awb-empty">No likely unmatched herbs or reagents.</p>'}</div></section></div>`;
   }
-  _gm(){
-    if(!game.user.isGM)return message('Only a GM can configure this world.','warn');
-    const maps=this.mappingDraft||structuredClone(this.services.mappings());
-    const kind=this.gmKind;
-    const source=kind==='reagents'?KEYS.map(id=>({id,name:label(id)})):kind==='herbs'?this.services.herbs:this.services.recipes;
-    const existing=game.items.contents.slice().sort((a,b)=>a.name.localeCompare(b.name));
-    const datalist=`<datalist id="awb-world-items">${existing.map(item=>`<option value="${esc(item.uuid)}" label="${esc(item.name)}"></option>`).join('')}</datalist>`;
-    const q=this.gmSearch.toLowerCase();
-    return `<section class="awb-panel awb-gm"><div class="awb-panel-heading"><div><h2>World Item Mapping</h2><p>Configure once per world. Inventory copies are recognised automatically.</p></div><button type="button" data-action="gm-pending">Pending brews</button></div>
-      <div class="awb-subtabs">${[['reagents','Reagents (9)'],['herbs','Herbs (43)'],['outputs','Potion outputs (44)']].map(([id,name])=>`<button type="button" class="${kind===id?'active':''}" data-gm-kind="${id}">${name}</button>`).join('')}</div>
-      <label class="awb-search-wrap"><i class="fas fa-search"></i><input data-search="gm" value="${esc(this.gmSearch)}" placeholder="Search mappings…"></label>
-      ${datalist}<div class="awb-mapping-list">${source.filter(x=>x.name.toLowerCase().includes(q)).map(x=>{
-        const uuid=maps[kind]?.[x.id]||'';const template=uuid.startsWith('Item.')?game.items.get(uuid.slice(5)):null;
-        return `<div class="awb-mapping-card" data-mapping-row="${esc(x.id)}"><div class="awb-mapping-name"><strong>${esc(x.name)}</strong>${kind==='herbs'?small(x.reagents.map(label).join(' / ')):''}</div><div class="awb-mapping-target" data-drop-map="${esc(x.id)}">${icon(template?.img||this._templateImage(uuid),template?.name||x.name)}<input type="text" list="awb-world-items" data-mapping="${esc(x.id)}" value="${esc(uuid)}" placeholder="Drop an Item or select/paste a UUID"><span class="awb-drop-indicator"><i class="fas fa-hand-point-down"></i></span></div></div>`;
-      }).join('')||'<p class="awb-empty">No matching mappings.</p>'}</div>
-      <div class="awb-bottom"><p>${small('Drop World Items from the sidebar, or select by UUID. Compendium Item UUIDs may also be pasted.')}</p><button type="button" class="awb-primary" data-action="gm-save" ${this.busy?'disabled':''}>Save ${esc(kind)} mappings</button></div>
-    </section>`;
-  }
+  _gm(){return directoryView(this);}
   _filterInput(node,query){
     const parent=node.closest('.awb-panel'),selector=query==='recipes'?'.awb-recipe-card':'.awb-mapping-card';
     parent?.querySelectorAll(selector).forEach(row=>{row.hidden=!row.textContent.toLowerCase().includes(node.value.toLowerCase());});
@@ -188,6 +178,11 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     const el=event.target;
     if(el.matches?.('[data-search="recipes"]')){this.search=el.value;this._filterInput(el,'recipes');}
     if(el.matches?.('[data-search="gm"]')){this.gmSearch=el.value;this._filterInput(el,'gm');}
+    if(el.matches?.('[data-search="herbs"]')){
+      this.herbQuery=el.value;
+      const q=el.value.toLowerCase();
+      this.element.querySelectorAll('[data-herb]').forEach(row=>{row.hidden=!row.textContent.toLowerCase().includes(q);});
+    }
     if(el.matches?.('[data-mapping]')){
       this.mappingDraft??=structuredClone(this.services.mappings());
       this.mappingDraft[this.gmKind]??={};
@@ -196,6 +191,10 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
   }
   _change(event){
     const el=event.target;
+    if(el.matches?.('[data-directory-recursive]')){
+      this.directoryDraft={...(this.directoryDraft||this.services.directories()),includeSubfolders:el.checked};
+      void this.render();
+    }
     if(el.matches?.('[data-show-unavailable]')){this.showUnavailable=el.checked;void this.render();}
     if(el.matches?.('[data-change]')){this.change=el.value;void this.render();}
     if(el.matches?.('[data-stack]')){
@@ -211,8 +210,10 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     if(target.dataset.herbKey){this.herbKey=target.dataset.herbKey;await this.render();return;}
     if(target.dataset.refine){this.selectedRefineId=target.dataset.refine;this.refineQty=1;this.refineTier=null;await this.render();return;}
     if(target.dataset.refineTier){this.refineTier=target.dataset.refineTier;await this.render();return;}
-    if(target.dataset.gmKind){this.gmKind=target.dataset.gmKind;this.gmSearch='';await this.render();return;}
+    if(target.dataset.gmKind){this.gmKind=target.dataset.gmKind;this.gmSearch='';this.gmFilter='all';await this.render();return;}
     const action=target.dataset.action;
+    if(action==='herb-filter'){const list=['all','common','rare','exotic'];this.herbFilter=list[(list.indexOf(this.herbFilter)+1)%list.length];this.herbQuery='';await this.render();return;}
+    if(action==='herb-sort'){const list=['name','rarity','quantity'];this.herbSort=list[(list.indexOf(this.herbSort)+1)%list.length];await this.render();return;}
     if(['batch-minus','batch-plus'].includes(action)){this.batch+=action.endsWith('minus')?-1:1;await this.render();return;}
     if(['herb-minus','herb-plus'].includes(action)){this.herbQty+=action.endsWith('minus')?-1:1;await this.render();return;}
     if(['refine-minus','refine-plus'].includes(action)){this.refineQty+=action.endsWith('minus')?-1:1;await this.render();return;}
@@ -223,6 +224,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
       else if(action==='refine')await this._doRefine();
       else if(action==='gm-save')await this._saveMappings();
       else if(action==='gm-pending')await this.services.pending();
+      else if(action?.startsWith('gm-'))await directoryAction(this,action,target);
     }catch(err){console.error('Alchemy Workbench:',err);this.notice={text:err.message||String(err),kind:'warn'};ui.notifications.error(`Alchemy: ${err.message||err}`);}
     finally{this.busy=false;await this.render();}
   }
@@ -256,6 +258,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
   }
   async _saveMappings(){
     if(!game.user.isGM)throw new Error('GM privileges required.');
+    if(!['reagents','outputs'].includes(this.gmKind))throw new Error('This catalogue is maintained from the selected Item directories.');
     this.mappingDraft??=structuredClone(this.services.mappings());
     for(const input of this.element.querySelectorAll('[data-mapping]'))this.mappingDraft[this.gmKind][input.dataset.mapping]=input.value.trim();
     const count=await this.services.saveMappings(this.gmKind,this.mappingDraft[this.gmKind]);

@@ -8,7 +8,7 @@ import {brewingEligibility,isAlchemistSupplies,rollAlchemyToolCheck,naturalD20Re
 import {captureWorkbenchViewport,restoreWorkbenchViewport} from '../scripts/viewport.mjs';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const recipes=JSON.parse(fs.readFileSync(path.join(root,'data/recipes.json'),'utf8'));
-const herbs=JSON.parse(fs.readFileSync(path.join(root,'data/herbs.json'),'utf8'));
+const herbs=[{id:'world-CaveMoss',name:'Cave Moss',rarity:'common',reagents:['common_curative'],sourceUuid:'Item.CaveMoss'}];
 const manifest=JSON.parse(fs.readFileSync(path.join(root,'module.json'),'utf8'));
 const recipe=name=>recipes.find(x=>x.name===name);
 let checks=0;const check=(condition,message)=>{checks++;assert.ok(condition,message);};
@@ -16,14 +16,14 @@ check(manifest.id==='alchemy-workbench'&&manifest.compatibility.minimum==='14','
 check(manifest.socket===true&&manifest.esmodules.includes('scripts/module.mjs'),'socket and script registered');
 check(manifest.relationships.systems[0].id==='dnd5e','D&D 5e required');
 check(recipes.length===44 && new Set(recipes.map(x=>x.id)).size===44,'44 unique potion recipes');
-check(herbs.length===43 && new Set(herbs.map(x=>x.id)).size===43,'43 unique herbs');
+check(!fs.existsSync(path.join(root,'data/herbs.json')),'legacy 43-herb file is removed');
 check(KEYS.length===9 && TIERS.length===3 && COLOURS.length===3,'nine reagent kinds');
 for(const r of recipes){
  check(Object.keys(r.cost).every(k=>KEYS.includes(k)&&Number.isSafeInteger(r.cost[k])&&r.cost[k]>0),`valid recipe ${r.name}`);
  check(DC[recipeTier(r)]&&HOURS[recipeTier(r)],`tier for ${r.name}`);
 }
 for(const h of herbs)check(h.reagents.length>0&&h.reagents.every(k=>KEYS.includes(k)),`herb ${h.name} has valid properties`);
-check(classifyHerbs(herbs).length===3,'three herb rarity anomalies');
+check(classifyHerbs(herbs).length===0,'world catalogue has no tier anomalies');
 check(recipe('Potion of Healing').cost.common_curative===3,'Healing recipe 3 Common Curative');
 check(recipe('Potion of Supreme Healing').cost.exotic_curative===3,'Supreme Healing 3 Exotic Curative');
 check(recipe('Potion of Speed').cost.rare_poisonous===1&&recipe('Potion of Speed').cost.rare_reactive===1,'Speed formula');
@@ -129,14 +129,14 @@ const rollback=new Actor(new Item('e','Exotic Curative','exotic_curative',1));ro
 await assert.rejects(()=>applyInventory(rollback,[{id:'e',quantity:1}],[{kind:'reagent',id:'rare_curative',quantity:3}],map));
 check(getQty(rollback.items.get('e'))===1,'on create failure original item restored');
 check(rollback.items.contents.length===1,'no duplicate items after rollback');
-console.log(`Alchemy Workbench smoke tests passed: ${checks} assertions, 44 recipes and 43 herbs.`);
+console.log(`Alchemy Workbench smoke tests passed: ${checks} assertions; herb catalogue comes from world folders.`);
 // Check that Foundry's init/ready hooks can register module settings and load both catalogues.
 const hooks={};
 globalThis.Hooks={once(name,fn){hooks[name]=fn;},on(){}};
 const moduleEntry={};const registered=[];let socketChannel='',socketHandler;
 globalThis.game={
  modules:new Map([['alchemy-workbench',moduleEntry]]),
- settings:{register:(id,key,config)=>registered.push({id,key,config})},
+ settings:{register:(id,key,config)=>registered.push({id,key,config}),get:(_id,key)=>key==='herbCatalog'?herbs:key==='mappings'?{reagents:{},herbs:{},outputs:{}}:{issues:[]}},
  system:{id:'dnd5e'},
  socket:{on:(id,fn)=>{socketChannel=id;socketHandler=fn;}},
  items:{contents:[],get:id=>templates[`Item.${id}`]||null}
@@ -145,16 +145,16 @@ globalThis.ui={notifications:{info:()=>{},warn:()=>{},error:e=>{throw Error(e)}}
 globalThis.foundry={utils:{escapeHTML:s=>String(s),randomID:()=>`job-${++serial}`},applications:{api:{ApplicationV2:class{constructor(options){this.options=options;}}}}};
 const fetchNative=globalThis.fetch;
 globalThis.fetch=async url=>{
- const file=url.endsWith('recipes.json')?'recipes.json':url.endsWith('herbs.json')?'herbs.json':null;
+ const file=url.endsWith('recipes.json')?'recipes.json':null;
  return file?{ok:true,json:async()=>JSON.parse(fs.readFileSync(path.join(root,'data',file),'utf8'))}:{ok:false};
 };
 await import('../scripts/module.mjs');
 check(typeof hooks.init==='function'&&typeof hooks.ready==='function','Foundry startup hooks registered');
 await hooks.init();
-check(registered.length===2,'world-scoped configuration and pending settings registered');
+check(registered.length===5,'world directory configuration, catalogue, report, mappings and pending settings registered');
 check(typeof moduleEntry.api.open==='function'&&typeof moduleEntry.api.setup==='function','UI API available');
 await hooks.ready();
-check(moduleEntry.api.getRecipes().length===44&&moduleEntry.api.getHerbs().length===43,'catalogues load in ready hook');
+check(moduleEntry.api.getRecipes().length===44&&moduleEntry.api.getHerbs().length===1,'recipes and world herb catalogue load in ready hook');
 check(socketChannel==='module.alchemy-workbench','module socket event registered');
 // A drag-copied World Item has a new actor UUID and may lack flags. Name fallback must still identify it.
 const worldReagent=new Item('world-common','Common Curative Reagent','common_curative',1);
@@ -171,10 +171,10 @@ await markActorInventory(actorCopied,mappedCopies,herbs);
 check(copied.getFlag('alchemy-workbench','category')==='common_curative','matched copy receives persistent reagent classification');
 check(copied.getFlag('alchemy-workbench','sourceUuid')==='Item.world-common','matched copy receives mapped template source UUID');
 const mismatched={...mappedCopies,reagents:{common_curative:'Item.another-world-item'},reagentNames:{}};
-check(identity(copied,'Item.another-world-item','common_curative'),'persistent category survives remapping the template UUID');
+check(!identity(copied,'Item.another-world-item','common_curative'),'old category source flag must not impersonate an unrelated reagent template');
 check(inventoryAudit(actorCopied,{...mappedCopies,reagents:{}},herbs).unmapped.length===1,'inventory audit identifies unmatched copies');
 const {AlchemyWorkbench}=await import('../scripts/workbench.mjs');
-const uiServices={recipes,herbs,mappings:()=>mappedCopies,submit:async()=>'',saveMappings:async()=>0,pending:async()=>null,brewingEligibility:()=>({ok:true,errors:[]})};
+const uiServices={recipes,herbs,mappings:()=>mappedCopies,submit:async()=>'',saveMappings:async()=>0,pending:async()=>null,brewingEligibility:()=>({ok:true,errors:[]}),directories:()=>({herbFolderId:'',reagentFolderId:'',includeSubfolders:true}),directoryReport:()=>({issues:[]})};
 game.user={id:'gm',isGM:true};
 const panel=new AlchemyWorkbench(actorCopied,uiServices);
 const html=await panel._renderHTML();
@@ -320,13 +320,14 @@ check(actorPartial.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x
 check(!pendingRecords.length,'single follow-up success does not create pending job');
 console.log('Critical and partial brewing mocked workflows passed.');
 // Real socket branches for herb extraction and reagent downgrade (no rolls).
-mappings.herbs={'cave-moss':'Item.CaveMoss'};
+mappings.herbs={'world-CaveMoss':'Item.CaveMoss'};
+mappings.herbNames={'world-CaveMoss':'Cave Moss'};
 mappings.reagents.rare_curative='Item.rare_curative';
 const actorHerb=new Actor(new Item('herb','Cave Moss','cave-moss',3));
 actorHerb.testUserPermission=()=>true;
 game.actors.get=id=>id==='test'?actorHerb:null;
 postedRolls=[];
-socketHandler({type:'request',nonce:'extract',mode:'extract',actorId:'test',herbId:'cave-moss',itemId:'herb',quantity:2,reagentKey:'common_curative'},'player');
+socketHandler({type:'request',nonce:'extract',mode:'extract',actorId:'test',herbId:'world-CaveMoss',itemId:'herb',quantity:2,reagentKey:'common_curative'},'player');
 reply=await eventuallyResponse();
 check(reply.ok===true,'herb extraction socket operation accepted');
 check(getQty(actorHerb.items.get('herb'))===1,'two herbs consumed');

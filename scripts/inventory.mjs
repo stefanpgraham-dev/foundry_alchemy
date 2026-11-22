@@ -12,7 +12,10 @@ export async function template(uuid){
 /** Copy-safe identity: actor Item UUIDs are intentionally never compared to their World Item UUID alone. */
 export function identity(item,configured,key=null,mappedName=''){
   if(!configured || !item)return false;
-  if(key && item.getFlag?.(MID,'category')===key)return true;
+  // A stale classification from another world/template must not override the new mapping.
+  const previousCategory=item.getFlag?.(MID,'category');
+  const previousSource=item.getFlag?.(MID,'sourceUuid');
+  if(key && previousCategory===key && (!previousSource || previousSource===configured))return true;
   const provenance=[
     item.getFlag?.(MID,'sourceUuid'),item.flags?.core?.sourceId,
     item._stats?.compendiumSource,item.system?.source?.uuid

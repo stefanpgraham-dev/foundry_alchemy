@@ -161,3 +161,36 @@
 .awb-result-lost {border-color:#9b5a4b!important;}
 .awb-result-pending {border-color:#7c8fa0!important;}
 .awb-result p {font-size:12px;padding:2px 0;}
+
+/* Directory-driven GM setup and herb satchel controls (v0.3.0). */
+.awb-library-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+.awb-library-toolbar .awb-search-wrap{flex:1 1 180px;margin:0}
+.awb-library-toolbar>button,.awb-folder-switches button{flex:0 0 auto;border:1px solid #756b58;border-radius:6px;background:#454039;color:#f1e5d2;padding:8px 11px;cursor:pointer}
+.awb-folder-switches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}
+.awb-folder-switches>div{display:flex;flex-direction:column;gap:8px;min-width:0;padding:15px;background:#25282a;border:1px solid #5a554b;border-radius:8px}
+.awb-folder-switches strong{color:#ead4a3}
+.awb-folder-switches span{overflow-wrap:anywhere;font-size:13px;color:#d0d0ce}
+.awb-folder-switches button{align-self:flex-start}
+.awb-directory-recursive{display:inline-flex;align-items:center;gap:8px;margin:8px 0;color:#e7dfcc}
+.awb-directory-recursive input{width:17px;height:17px}
+.awb-folder-summary{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+.awb-folder-summary span{display:flex;flex-direction:column;min-width:110px;padding:11px 14px;border-radius:6px;background:#262a2b;color:#d3c9b9;font-size:12px}
+.awb-folder-summary strong{font-size:19px;color:#f0d69e}
+.awb-folder-issues{display:flex;flex-direction:column;gap:7px;margin:10px 0;max-height:40vh;overflow:auto}
+.awb-folder-issue{display:flex;align-items:flex-start;gap:11px;border:1px solid #65554a;border-radius:6px;padding:9px 11px;background:#2c2e30}
+.awb-folder-issue>i{padding-top:4px;color:#ddab67}
+.awb-folder-issue>div{flex:1;min-width:0}
+.awb-folder-issue strong{display:block;color:#f2e5d6}
+.awb-folder-issue small{display:block;color:#bfbfbf;overflow-wrap:anywhere;line-height:1.5}
+.awb-folder-issue button{flex:0 0 auto}
+.awb-herb-definition .awb-mapping-name small{display:block;color:#c2b7a5;font-size:12px}
+.awb-herb-definition button{justify-self:end;min-width:78px}
+.awb-directory-preview{max-height:65vh;overflow-y:auto}
+.awb-directory-preview li{font-size:13px;margin:5px 0;overflow-wrap:anywhere}
+.awb-item-row[hidden]{display:none!important}
+@media(max-width:700px){
+ .awb-folder-switches{grid-template-columns:1fr}
+ .awb-library-toolbar>button{flex:1 1 120px}
+ .awb-folder-summary span{min-width:90px}
+ .awb-herb-definition button{justify-self:start}
+}

@@ -1,8 +1,8 @@
 {
   "id": "alchemy-workbench",
   "title": "Alchemy Workbench",
-  "description": "Wraeclast alchemy: herb extraction, reagent conversion, and batch brewing from mapped world Items for Foundry VTT v14 / D&D 5e.",
-  "version": "0.2.1",
+  "description": "Directory-driven alchemy: discover herbs and nine reagent types from world Item folders, craft batches and prepare reagents in Foundry VTT v14 / D&D 5e.",
+  "version": "0.3.0",
   "authors": [
     {
       "name": "stefanpgraham-dev"

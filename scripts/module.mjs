@@ -1,6 +1,7 @@
 import {KEYS, TIERS, COLOURS, DC, HOURS,recipeTier,percentageYield,chanceSucceeds,classifyHerbs,assertQty} from './engine.mjs';
 import {MID,getQty,normal,setting,findMatchedInventory,findHerbs,markActorInventory,planBrew,planExtract,planDowngrade,applyInventory,changeOutputs,template} from './inventory.mjs';
 import {AlchemyWorkbench} from './workbench.mjs';
+import {scanDirectories,defaultDirectoryConfig} from './directories.mjs';
 import {brewingEligibility,rollAlchemyToolCheck,naturalD20Result} from './eligibility.mjs';
 
 const DIALOG=()=>foundry.applications.api.DialogV2;
@@ -8,6 +9,7 @@ const esc=v=>foundry.utils.escapeHTML(String(v??''));
 const slug=s=>String(s).replace(/_/g,' ');
 const actors=()=>game.actors.contents.filter(a=>a.testUserPermission(game.user,'OWNER'));
 const blankMappings=()=>({reagents:{},herbs:{},outputs:{}});
+const openWorkbenches=new Set();
 let recipes=[],herbs=[];
 const locks=new Set(),waiting=new Map(),decisions=new Map();
 const SOCKET=`module.${MID}`;
@@ -37,15 +39,23 @@ async function selectActor(){
  return result?game.actors.get(result):null;
 }
 function workbench(actor){
- return new AlchemyWorkbench(actor,{
-  recipes, herbs, mappings:setting, submit:submitAction,
-  saveMappings, pending:pendingDialog, brewingEligibility
+ const app=new AlchemyWorkbench(actor,{
+  recipes,get herbs(){return herbs;},mappings:setting,submit:submitAction,saveMappings,
+  directories:()=>game.settings.get(MID,'directoryConfig'),
+  directoryReport:()=>game.settings.get(MID,'directoryReport'),
+  previewDirectories,refreshDirectories,pending:pendingDialog,brewingEligibility
  });
+ openWorkbenches.add(app);
+ return app;
 }
 async function hub({tab='brew'}={}){
  if(!recipes.length){ui.notifications.warn('Alchemy data are not ready.');return;}
  try{
-  const actor=await selectActor();if(!actor)return;
+  // GM setup must also work in a new world before any Actor has been created.
+  const actor=tab==='gm' && !actors().length
+    ? {id:'world-setup',name:'World Setup',system:{},items:{contents:[],get:()=>null,*[Symbol.iterator](){}}}
+    : await selectActor();
+  if(!actor)return;
   const app=workbench(actor);app.tab=tab;await app.render(true);
   return app;
  }catch(err){notifyError(err);}
@@ -102,65 +112,67 @@ async function brewDialog(actor){
  if(confirm)await submitAction({mode:'brew',actorId:actor.id,recipeId:recipe.id,batch,selectedIds:response.selectedIds,change:response.change,doublePass:response.doublePass});
 }
 
-const uuidValid=async value=>{try{return Boolean(value && (await template(value)));}catch{return false;}};
-function suggest(name){
- const n=normal(name);
- const exact=game.items.contents.find(i=>normal(i.name)===n);
- if(exact)return exact.uuid;
- const extra=game.items.contents.find(i=>normal(i.name)===n.replace('potionof','')||normal(i.name)===n+'reagent'||normal(i.name)===n.replace('potionof','potion'));
- return extra?.uuid||'';
-}
-async function setupHub(){
- if(!game.user.isGM)throw new Error('GM access required.');
- const maps=setting(), audit=classifyHerbs(herbs);
- const modes=[['reagents',`Reagents (${Object.values(maps.reagents).filter(Boolean).length}/9 mapped)`],['herbs',`Herbs (${Object.values(maps.herbs).filter(Boolean).length}/43 mapped)`],['outputs',`Potion outputs (${Object.values(maps.outputs).filter(Boolean).length}/44 mapped)`],['pending','Pending extra-time brews'],['audit','View herb data discrepancies']];
- const result=await wait('Alchemy — GM Configuration',`<div class="awb">${field('Configuration',sel('tab',modes.map(([value,label])=>({value,label}))))}${note('Mappings are stored per world. Map each category to the actual World Item UUID; compendium Item UUIDs are also supported.')}</div>`,[button('next','Open',(e,b)=>b.form.elements.tab.value,true)]);
- if(!result)return;
- if(['reagents','herbs','outputs'].includes(result))await mappingScreen(result);
- if(result==='pending')await pendingDialog();
- if(result==='audit')await wait('Alchemy — Herb Audit',`<div class="awb">${listHtml(audit.map(h=>`<p><strong>${esc(h.name)}</strong> — herb rarity ${esc(h.rarity)}; reagent properties ${esc(h.reagents.join(', '))}</p>`))}</div>`,[button('ok','Close',()=>true,true)]);
-}
+async function setupHub(){return hub({tab:'gm'});}
 async function saveMappings(kind,values){
  if(!game.user.isGM)throw new Error('GM access required.');
- if(!['reagents','herbs','outputs'].includes(kind))throw new Error('Invalid mapping section.');
+ if(!['reagents','outputs'].includes(kind))throw new Error('Herbs are discovered from the selected Item folder, not mapped individually.');
  const map=structuredClone(setting()||blankMappings());
- const source=kind==='reagents'?KEYS.map(id=>({id})):kind==='herbs'?herbs:recipes;
+ const source=kind==='reagents'?KEYS.map(key=>({id:key})):recipes;
  const accepted=new Set(source.map(x=>x.id));
- const result=Object.fromEntries(Object.entries(values).filter(([id,uuid])=>accepted.has(id)&&typeof uuid==='string'&&uuid.trim()).map(([id,uuid])=>[id,uuid.trim()]));
+ const result=Object.fromEntries(Object.entries(values||{}).filter(([key,uuid])=>accepted.has(key)&&typeof uuid==='string'&&uuid.trim()).map(([key,uuid])=>[key,uuid.trim()]));
  const names={};
- for(const [id,uuid] of Object.entries(result)){
-  const t=await template(uuid);
-  if(!t)throw new Error(`Invalid Item UUID for ${id}: ${uuid}`);
-  names[id]=t.name;
+ for(const [key,uuid] of Object.entries(result)){
+  const item=await template(uuid);
+  if(!item)throw new Error('Invalid Item UUID for '+key+': '+uuid);
+  names[key]=item.name;
  }
  map[kind]=result;
  if(kind==='reagents')map.reagentNames=names;
- if(kind==='herbs')map.herbNames=names;
  await game.settings.set(MID,'mappings',map);
- if(kind==='reagents'||kind==='herbs'){
+ if(kind==='reagents'){
   let marked=0;
   for(const actor of game.actors.contents){
    try{marked+=await markActorInventory(actor,map,herbs);}
-   catch(err){console.warn(`${MID}: Could not stamp items for actor ${actor.name}`,err);}
+   catch(error){console.warn(MID+': cannot classify '+actor.name,error);}
   }
-  ui.notifications.info(`Alchemy: Saved ${Object.keys(result).length} ${kind} mappings; marked ${marked} actor items.`);
- }else ui.notifications.info(`Alchemy: Saved ${Object.keys(result).length} ${kind} mappings.`);
+  ui.notifications.info('Alchemy: Saved '+Object.keys(result).length+' reagent mappings; classified '+marked+' actor Items.');
+ }else ui.notifications.info('Alchemy: Saved '+Object.keys(result).length+' potion output mappings.');
  return Object.keys(result).length;
 }
-async function mappingScreen(kind){
+function previewDirectories(config){
  if(!game.user.isGM)throw new Error('GM access required.');
- const m=structuredClone(setting()||blankMappings());
- const source=kind==='reagents'?KEYS.map(k=>({id:k,name:slug(k)})):kind==='herbs'?herbs:recipes;
- const options=game.items.contents.slice().sort((a,b)=>a.name.localeCompare(b.name));
- const datalist=`<datalist id="awb-source-items">${options.map(x=>`<option value="${esc(x.uuid)}" label="${esc(x.name)}"></option>`).join('')}</datalist>`;
- const cells=source.map(x=>{
-  const value=m[kind]?.[x.id]||suggest(x.name);
-  return `<label class="awb-mapping"><strong>${esc(x.name)}</strong><input name="map-${esc(x.id)}" value="${esc(value)}" list="awb-source-items" autocomplete="off" placeholder="Item UUID or blank"></label>`;
- });
- const content=`<div class="awb"><p>Choose World Items from the suggestions, or paste Item/Compendium UUIDs. Empty entries are allowed, but required reagents must be mapped for crafting.</p>${datalist}<div class="awb-mapping-scroll">${cells.join('')}</div></div>`;
- const result=await wait(`Alchemy — Map ${kind}`,content,[button('save','Save Mappings',(e,b)=>Object.fromEntries(source.map(x=>[x.id,String(b.form.elements[`map-${x.id}`]?.value||'').trim()])),true)]);
- if(!result)return;
- await saveMappings(kind,result);
+ return scanDirectories({folders:game.folders,items:game.items},config,{herbs,mappings:setting()});
+}
+async function refreshDirectories(config){
+ if(!game.user.isGM)throw new Error('GM access required.');
+ const selection={...defaultDirectoryConfig(),...(config||game.settings.get(MID,'directoryConfig'))};
+ const scan=previewDirectories(selection);
+ const oldMap=structuredClone(setting()||blankMappings()),oldHerbs=herbs;
+ const oldConfig=game.settings.get(MID,'directoryConfig'),oldReport=game.settings.get(MID,'directoryReport');
+ const nextMap={...oldMap,reagents:scan.reagentMappings,reagentNames:scan.reagentNames,herbs:scan.herbMappings,herbNames:scan.herbNames};
+ try{
+  await game.settings.set(MID,'mappings',nextMap);
+  await game.settings.set(MID,'herbCatalog',scan.herbs);
+  await game.settings.set(MID,'directoryConfig',selection);
+  await game.settings.set(MID,'directoryReport',scan.report);
+  herbs=scan.herbs;
+ }catch(error){
+  console.error(MID+': folder refresh failed; restoring previous settings',error);
+  try{
+   await game.settings.set(MID,'mappings',oldMap);
+   await game.settings.set(MID,'herbCatalog',oldHerbs);
+   await game.settings.set(MID,'directoryConfig',oldConfig);
+   await game.settings.set(MID,'directoryReport',oldReport);
+  }catch(rollbackError){console.error(MID+': rollback failed',rollbackError);}
+  throw error;
+ }
+ let marked=0;
+ for(const actor of game.actors.contents){
+  try{marked+=await markActorInventory(actor,nextMap,herbs);}
+  catch(error){console.warn(MID+': cannot classify '+actor.name,error);}
+ }
+ ui.notifications.info('Alchemy: '+scan.report.validHerbs+' herbs and '+scan.report.mappedReagents+'/9 reagents discovered; '+scan.report.issues.length+' notices. '+marked+' actor Items classified.');
+ return scan.report;
 }
 async function pendingDialog(){
  if(!game.user.isGM)throw new Error('GM access required.');
@@ -357,11 +369,23 @@ function addSheetButton(app,html){
 }
 Hooks.once('init',()=>{
  game.settings.register(MID,'mappings',{name:'Alchemy item mappings',scope:'world',config:false,type:Object,default:blankMappings()});
+ game.settings.register(MID,'directoryConfig',{name:'Alchemy item folders',scope:'world',config:false,type:Object,default:defaultDirectoryConfig()});
+ game.settings.register(MID,'herbCatalog',{name:'Discovered herb catalogue',scope:'world',config:false,type:Array,default:[]});
+ game.settings.register(MID,'directoryReport',{name:'Alchemy directory validation',scope:'world',config:false,type:Object,default:{issues:[],added:[],changed:[],removed:[],herbItems:0,reagentItems:0,validHerbs:0,mappedReagents:0}});
  game.settings.register(MID,'pending',{name:'Pending alchemy brews',scope:'world',config:false,type:Array,default:[]});
- const api={open:hub,setup:()=>hub({tab:'gm'}),legacySetup:setupHub,getRecipes:()=>structuredClone(recipes),getHerbs:()=>structuredClone(herbs)};
+ const api={open:hub,setup:()=>hub({tab:'gm'}),legacySetup:setupHub,getRecipes:()=>structuredClone(recipes),getHerbs:()=>structuredClone(herbs),previewDirectories,refreshDirectories};
  game.modules.get(MID).api=api;
  Hooks.on('renderActorSheetV2',addSheetButton);
  Hooks.on('renderActorSheet',addSheetButton);
+ Hooks.on('updateSetting',setting=>{
+  if(setting.key===MID+'.herbCatalog')herbs=game.settings.get(MID,'herbCatalog')||[];
+  if([MID+'.herbCatalog',MID+'.mappings'].includes(setting.key)){
+   for(const app of openWorkbenches){
+    if(!app?.rendered)continue;
+    void app.render({force:true}).catch(error=>console.warn(MID+': window refresh failed',error));
+   }
+  }
+ });
  Hooks.on('createItem',async item=>{
   if(!game.user.isGM || !item?.parent || item.parent.documentName!=='Actor'||!herbs.length)return;
   try{await markActorInventory(item.parent,setting(),herbs);}catch(err){console.warn(`${MID}: automatic item classification failed`,err);}
@@ -371,8 +395,8 @@ Hooks.once('ready',async()=>{
  if(game.system.id!=='dnd5e'){ui.notifications.warn('Alchemy Workbench requires the dnd5e system.');return;}
  try{
   const base=`modules/${MID}/data/`;
-  const [r,h]=await Promise.all([fetch(`${base}recipes.json`).then(x=>{if(!x.ok)throw Error('Recipes missing');return x.json();}),fetch(`${base}herbs.json`).then(x=>{if(!x.ok)throw Error('Herbs missing');return x.json();})]);
-  recipes=r;herbs=h;
+  recipes=await fetch(`${base}recipes.json`).then(x=>{if(!x.ok)throw Error('Recipes missing');return x.json();});
+  herbs=game.settings.get(MID,'herbCatalog')||[];
   game.socket.on(SOCKET,onSocket);
   ui.notifications.info('Alchemy Workbench ready. Open from any owned character sheet, or via the module API.',{permanent:false});
  }catch(err){notifyError(err);}
