@@ -197,8 +197,9 @@ export async function recipeEditorAction(app,action,target){
   return true;
  }
  if(action==='gm-recipe-export'){
-  if(typeof saveDataToFile!=='function')throw Error('Foundry saveDataToFile is unavailable.');
-  saveDataToFile(exportRecipeLibrary(app.services.recipes),'application/json','alchemy-recipes.json');return true;
+  const save=foundry.utils?.saveDataToFile??(typeof saveDataToFile==='function'?saveDataToFile:null);
+  if(!save)throw Error('Foundry file-export helper is unavailable.');
+  save(exportRecipeLibrary(app.services.recipes),'application/json','alchemy-recipes.json');return true;
  }
  if(action==='gm-recipe-test'){
   syncDraft(app);
@@ -216,9 +217,10 @@ export async function recipeEditorImport(app,file){
  let missing=0;
  for(const recipe of imported){
   if(!recipe.outputUuid)continue;
-  const source=await fromUuid(recipe.outputUuid);
-  if(source?.documentName==='Item')continue;
+  let source=null;
+  try{source=await fromUuid(recipe.outputUuid);}catch{/* Other-world UUIDs may be unresolvable. */}
   const title=recipe.outputName||recipe.name;
+  if(source?.documentName==='Item'&&source.name.toLowerCase()===title.toLowerCase())continue;
   const matches=game.items.contents.filter(item=>item.name.toLowerCase()===title.toLowerCase());
   if(matches.length===1)recipe.outputUuid=matches[0].uuid;
   else{

@@ -194,6 +194,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
   }
   _change(event){
     const el=event.target;
+    if(el.matches?.('[data-recipe-filter],[data-recipe-sort]')){recipeEditorInput(this,event);return;}
     if(el.matches?.('[data-recipe-import]')){
       const file=el.files?.[0];
       if(file){
