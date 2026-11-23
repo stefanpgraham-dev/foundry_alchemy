@@ -69,6 +69,9 @@ assert.equal(both.herbs.length,1);
 assert.equal(both.herbs[0].sourceUuid,'Item.earthWorld');
 assert(both.herbAliases[both.herbs[0].id].includes(compHerb.uuid));
 
+// The real Foundry game collection exists when matching Actor Items.
+globalThis.game={items:{get:id=>world.items.contents.find(item=>item.id===id)||null}};
+
 // Actor-inventory copies are recognised by compendium provenance rather than
 // requiring actor Item UUID == reference Item UUID.
 const actorReagent={...doc('actorR','Rare Reactive Reagent','Actor.hero.Item.actorR','','rare',
