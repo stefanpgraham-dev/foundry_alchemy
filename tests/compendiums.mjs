@@ -90,6 +90,26 @@ assert.equal(findHerbs(actor,mappings,both.herbs)[0].quantity,3);
 assert(identity(actorReagent,'Item.rrWorld','rare_reactive',both.reagentNames.rare_reactive,
  both.reagentAliases.rare_reactive));
 
+// Two genuinely different compendium herbs with the same name must not both
+// recognise one provenance-less inventory copy by name alone.
+const otherEarth=doc('otherEarth','Earthtongue','Compendium.my-world.herbs.Item.otherEarth',
+ '<p>@UUID[Compendium.my-world.reagents.Item.rc]{Rare Curative Reagent}</p>');
+packs[0].getDocuments=async()=>[compHerb,otherEarth];
+const duplicated=await scan({herbPackIds:['my-world.herbs'],reagentPackIds:['my-world.reagents']});
+assert.equal(duplicated.herbs.length,2);
+assert(duplicated.report.issues.some(x=>/same name/.test(x.problem)));
+const unidentified={...doc('unidentified','Earthtongue','Actor.hero.Item.unidentified','','rare',
+ {system:{quantity:1}}),getFlag:()=>null};
+const dupeMap={...mappings,herbs:duplicated.herbMappings,herbNames:duplicated.herbNames,
+ herbAliases:duplicated.herbAliases};
+assert.equal(findHerbs({items:{contents:[unidentified],
+ [Symbol.iterator](){return this.contents[Symbol.iterator]();}}},dupeMap,duplicated.herbs).length,0);
+const identified={...unidentified,flags:{core:{sourceId:otherEarth.uuid}}};
+const matchHerb=findHerbs({items:{contents:[identified],
+ [Symbol.iterator](){return this.contents[Symbol.iterator]();}}},dupeMap,duplicated.herbs);
+assert.equal(matchHerb.length,1);
+assert.equal(matchHerb[0].herb.sourceUuid,otherEarth.uuid);
+
 // Broken compendium UUID must not infer a valid reagent from its label alone.
 const broken=doc('broken','Broken','Compendium.my-world.herbs.Item.broken',
  '@UUID[Compendium.my-world.reagents.Item.absent]{Rare Curative Reagent}');

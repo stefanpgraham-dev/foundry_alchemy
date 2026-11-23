@@ -210,6 +210,17 @@ export function scanDirectories(world,config,previous={},sources={}){
   herbs.push(herb);herbMappings[id]=item.uuid;herbNames[id]=item.name;herbAliases[id]=aliases;
  }
  herbs.sort((a,b)=>a.name.localeCompare(b.name));
+ // Same-named but unrelated Items require provenance: name-only matching
+ // would count one inventory stack multiple times.
+ const names=new Map();
+ for(const herb of herbs){
+  const name=normalize(herb.name);
+  names.set(name,[...(names.get(name)||[]),herb]);
+ }
+ for(const entries of names.values())if(entries.length>1){
+  for(const entry of entries)issues.push(issue('herb',{uuid:entry.sourceUuid,name:entry.name},
+   'Another selected herb has the same name but a different source. Actor copies require source metadata for unambiguous matching.','warning'));
+ }
  const oldById=new Map((previous.herbs||[]).map(h=>[h.id,h])),newById=new Map(herbs.map(h=>[h.id,h]));
  const added=herbs.filter(h=>!oldById.has(h.id)).map(h=>h.name);
  const changed=herbs.filter(h=>oldById.has(h.id)&&!equalHerb(h,oldById.get(h.id))).map(h=>h.name);

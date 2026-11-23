@@ -10,7 +10,7 @@ export async function template(uuid){
   return doc?.documentName==='Item'?doc:null;
 }
 /** Copy-safe identity: actor Item UUIDs are intentionally never compared to their World Item UUID alone. */
-export function identity(item,configured,key=null,mappedName='',aliases=[]){
+export function identity(item,configured,key=null,mappedName='',aliases=[],allowNameFallback=true){
   if(!configured || !item)return false;
   const allowed=new Set([configured,...(Array.isArray(aliases)?aliases:[])]);
   // A stale classification from another world/template must not override the new mapping.
@@ -23,6 +23,8 @@ export function identity(item,configured,key=null,mappedName='',aliases=[]){
   ];
   if(provenance.some(p=>p && allowed.has(p)))return true;
   if(allowed.has(item.uuid))return true;
+  // Never use a non-unique name to classify items from distinct sources.
+  if(!allowNameFallback)return false;
   // World Items gain different actor IDs. Use their stable template name as fallback.
   const source=configured.startsWith('Item.')?game.items?.get(configured.slice(5)):null;
   const names=[mappedName,source?.name].filter(Boolean);
@@ -42,10 +44,16 @@ export function findMatchedInventory(actor,mappings,{selectedIds=null}={}){
 }
 export function findHerbs(actor,mappings,herbs){
   const matched=[];
+  const counts=new Map();
+  for(const herb of herbs){
+    const name=normal(mappings.herbNames?.[herb.id]||herb.name);
+    counts.set(name,(counts.get(name)||0)+1);
+  }
   for(const herb of herbs){
     const uuid=mappings.herbs?.[herb.id];if(!uuid)continue;
     for(const item of actor.items){
-      if(getQty(item)>0 && identity(item,uuid,herb.id,mappings.herbNames?.[herb.id],mappings.herbAliases?.[herb.id])){
+      if(getQty(item)>0 && identity(item,uuid,herb.id,mappings.herbNames?.[herb.id],
+        mappings.herbAliases?.[herb.id],counts.get(normal(mappings.herbNames?.[herb.id]||herb.name))===1)){
         matched.push({herb,item,quantity:getQty(item)});
       }
     }
@@ -150,7 +158,9 @@ export function planExtract(actor,herbId,actorItemId,qty,herbs,mappings,reagentK
  const herb=herbs.find(h=>h.id===herbId);
  if(!herb || !herb.reagents.includes(reagentKey))throw new Error('This herb cannot produce the selected reagent.');
  const item=actor.items.get(actorItemId);
- if(!item || !identity(item,mappings.herbs?.[herb.id],herb.id,mappings.herbNames?.[herb.id],mappings.herbAliases?.[herb.id]))throw new Error('That herb is not mapped to this item.');
+ const sameName=herbs.filter(h=>normal(mappings.herbNames?.[h.id]||h.name)===normal(mappings.herbNames?.[herb.id]||herb.name));
+  if(!item || !identity(item,mappings.herbs?.[herb.id],herb.id,mappings.herbNames?.[herb.id],
+       mappings.herbAliases?.[herb.id],sameName.length===1))throw new Error('That herb is not mapped to this item.');
  const quantity=assertQty(qty,1000);
  if(getQty(item)<quantity)throw new Error('Not enough herbs.');
  return {consume:[{id:item.id,quantity}],outputs:[{kind:'reagent',id:reagentKey,quantity}]};
