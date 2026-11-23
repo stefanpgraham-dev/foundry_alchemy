@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.4.0 — fully editable, world-scoped recipe library.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.4.3 — mixed World Item and compendium herb/reagent sources.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -21,29 +21,29 @@ Or extract the `alchemy-workbench` folder from the release ZIP to `Data/modules/
 - A GM must be connected when players craft. The active GM validates and executes inventory transactions and rolls. Dice So Nice is optional and integrates via normal Foundry Roll chat messages.
 - When both follow-up checks succeed after an initial failure, the player is prompted **after those dice have rolled** to choose full batch at +50% brewing time or partial batch immediately.
 
-## GM setup — directory-driven
+## GM setup — World Items and compendium support (v0.4.3)
 
-Open **GM Setup** from the workbench or run `game.modules.get("alchemy-workbench").api.setup()`.
+Open **Alchemy → GM Setup → Directories**, then independently choose sources for **Herbs** and **Reagents**. Each category can use:
 
-1. In **Directories**, click **Pick herb directory** and select a World Item folder (for example, *Grassland* or a parent folder called *Herbs*).
-2. Click **Pick reagent directory** and select the folder containing your nine reagent World Items (Common/Rare/Exotic × Curative/Poisonous/Reactive).
-3. Leave **Include subfolders recursively** selected if herbs are organised into biome subfolders.
-4. Review the scan preview showing added, changed and removed definitions, missing links, unknown reagent names and duplicate classifications. Click **Apply scan** to update this world's catalogue.
-5. Whenever items or descriptions change, click **Refresh from directory**. An explicit refresh is required; ordinary inventory actions don't rescan the directory.
-6. Use **Herbs** and **Reagents** in GM Setup to search, filter and sort imported definitions. Each herb retains its Item name, rarity and a readable list of reagent properties. Entries link back to their original Items.
-7. In **Reagents**, manually map any specially named reagent World Items if automatic classification by Item name is not possible. Refresh again to resolve herbs that link to these mappings. **Potion outputs** are independently mappable as before.
+- A World Item folder, optionally including its subfolders.
+- One or more **Item compendium packs**, chosen using **Choose herb compendiums** and **Choose reagent compendiums**.
+- **Both** a World Item folder and compendium packs at once. Clear a folder using **Clear folder** for a compendium-only setup.
 
-**Herb format:** Each herb is a normal Foundry Item whose Description contains actual Foundry links to one or more reagent Items, for example:
-`@UUID[Item.ABCD1234]{Rare Curative Reagent}` and `@UUID[Item.EFGH5678]{Rare Reactive Reagent}`.
-The scanner reads the Item UUIDs from the stored description, including legacy `@Item[…]` and rendered `data-uuid` content links. Plain mentions of reagent names are *not* interpreted as ingredient properties. Every valid herb produces exactly one chosen reagent per consumed herb. Unresolved reagent links are reported rather than guessed.
+**There is no need to move current World Items into compendiums.** The previous herb/reagent folder settings are retained on upgrade. The pack selections default to empty. After choosing sources, click **Refresh from sources**, review additions/changes/removals and validation warnings, then **Apply scan**. Scans are explicit; they do not change existing character inventory Items.
 
-**No bundled herb catalogue:** This version removes the previous 43 hard-coded herbs. Your world folder is the sole herb source. Before the first directory scan, no herbs will be recognised for extraction; potion recipes remain available once their reagents are mapped.
+A herb is any selected Item with actual Foundry document links in its Description to one or more reagent Items. Supported references include:
 
-**Inventory copies:** World Item UUIDs do not match Actor-embedded Item UUIDs. The module uses original source metadata, persistent classification flags and template-name matching; refreshing a directory doesn't remove items from player inventories. The scan updates the world catalogue, not actor Item definitions.
+- World Items: `@UUID[Item.ABCD1234]{Rare Curative Reagent}`.
+- Compendium Items: `@UUID[Compendium.my-module.reagents.Item.ABCD1234]{Rare Curative Reagent}`.
+- Existing rendered `data-uuid` links and legacy `@Item[…]` / `@Compendium[…]` content links.
 
-**Validation:** A scan preview and the persistent Validation list identify unknown reagent names, duplicate classifications, missing reagent categories, broken/missing links, and items removed from the selected folder. The module skips herbs with no valid linked output; valid outputs on other herbs remain usable. A GM can click **Open Item** on a validation entry for correction.
+Links can point to reagents in the opposite source type, including a compendium Item not itself selected for automatic reagent discovery. The scanner resolves the real linked document; **a broken link or plain text mentioning a reagent does not create a valid property**.
 
-Output Item mappings remain optional. Without one, the module awards a basic consumable without bespoke D&D 5e activities/effects. Pending extra-time brews remain manageable from **GM Setup → Pending brews**.
+A World Item imported from a compendium can be recognised as the same reagent or herb through its original compendium-source metadata. If the same herb exists in both selected sources with matching provenance, the World Item is preferred for the displayed entry and the original compendium UUID remains a recognised alias. Source ambiguity and duplicate reagent classifications are reported to the GM. Reagent names that do not match the standard nine classifications can still be mapped manually using a dragged World/compendium Item or its UUID; explicit manual mappings survive refresh.
+
+**Inventory copies and permissions:** The module matches actor Items against source provenance, stored classification flags and stable mapped names. Item templates and potion output effects can be copied from either source. Scanning a selected pack reads its Item documents only when the GM clicks Refresh; the pack must be installed and readable by the GM. Other clients need the normal world permissions to access source content directly, but the saved world catalogue is used for crafting and does not require each player to import compendium Items.
+
+**Validation:** Preview and GM Herbs/Reagents lists report broken links, unknown reagent types, duplicate classifications and missing/unavailable packs. Fix the source Item and refresh again. Existing character Items and pending brews are never deleted or silently rewritten by a scan.
 
 ## GM Recipe Library (v0.4.0)
 
@@ -132,3 +132,12 @@ No recipe formulas, inventory records, GM mappings, active brews or proficiency 
 - Added JSON recipe-library export/import and a safe no-roll recipe test.
 - Saved output Item and recipe snapshots on pending brews, independent of subsequent edits.
 - Added regression tests for formula migration, invalid ingredients, and completing delayed brews after recipe deletion.
+
+## v0.4.3 — compendiums and mixed-source alchemy
+
+- Optional Item compendium pack pickers for herbs and reagents alongside existing World Item folders.
+- World-only, compendium-only, and combined sources with support for several packs.
+- Resolve World/compendium reagent links across source types; source provenance aliases recognise imported Item copies.
+- Compendium reagent drag-and-drop in the GM recipe editor, even when the mapped equivalent is a World Item.
+- Preserve explicit GM reagent mapping overrides and provide validation previews before applying scans.
+- Added regression tests for mixed sources, imported Item identity, broken links, duplicate herbs, and unavailable packs.

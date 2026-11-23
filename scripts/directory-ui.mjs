@@ -1,5 +1,5 @@
 /* GM folder setup and directory-based catalogue (Foundry v14). */
-import {itemFolders,folderLabel} from './directories.mjs';
+import {itemFolders,folderLabel,itemPacks,packLabel,normalizeDirectoryConfig} from './directories.mjs';
 import {KEYS} from './engine.mjs';
 import {recipeEditorView,recipeEditorAction} from './recipe-ui.mjs';
 
@@ -13,8 +13,14 @@ const report=(app)=>app.services.directoryReport()||{issues:[]};
 
 function folderName(id){
  const f=itemFolders(game).find(x=>x.id===id);
- return f?folderLabel(f,game):'Not configured';
+ return f?folderLabel(f,game):'No World Item folder';
 }
+function packNames(ids){
+ const packs=new Map(itemPacks(game.packs).map(pack=>[pack.collection,pack]));
+ if(!ids?.length)return 'No Item compendium packs';
+ return ids.map(id=>packs.has(id)?packLabel(packs.get(id))+' ('+id+')':id+' (unavailable)').join(' · ');
+}
+function hasSources(cfg,kind){return Boolean(cfg[kind+'FolderId']||cfg[kind+'PackIds']?.length);}
 function noteList(issues){
  if(!issues?.length)return '<p class="awb-empty">No validation problems reported.</p>';
  return '<div class="awb-folder-issues">'+issues.map((issue)=>{
@@ -29,7 +35,7 @@ function catalogueToolbar(app){
   '<label class="awb-search-wrap"><i class="fas fa-search"></i><input data-search="gm" value="'+esc(app.gmSearch)+'" placeholder="Search '+esc(kind)+'…"></label>'+
   button('gm-filter','Filter: '+label(app.gmFilter))+
   button('gm-sort','Sort: '+({name:'A–Z',reverse:'Z–A',tier:'Tier'}[app.gmSort]||'A–Z'))+
-  button('gm-refresh','Refresh from directory')+'</div>';
+  button('gm-refresh','Refresh from sources')+'</div>';
 }
 function sorted(rows,app){
  const list=[...rows];
@@ -45,11 +51,19 @@ function sorted(rows,app){
 
 export function directoryView(app){
  if(!game.user.isGM)return '<div class="awb-alert awb-alert-warn">Only a GM can configure the world.</div>';
- const current=config(app),r=report(app),map=mappings(app),kind=app.gmKind;
+ const current=normalizeDirectoryConfig(config(app)),r=report(app),map=mappings(app),kind=app.gmKind;
  const issues=r.issues||[];
  const foldersBar='<div class="awb-folder-switches">'+
-  '<div><strong>Herb folder</strong><span>'+esc(folderName(current.herbFolderId))+'</span>'+button('gm-pick-herbs','Pick herb directory')+'</div>'+
-  '<div><strong>Reagent folder</strong><span>'+esc(folderName(current.reagentFolderId))+'</span>'+button('gm-pick-reagents','Pick reagent directory')+'</div>'+
+  '<div><strong>Herb sources</strong><small>World Item folder (optional)</small><span>'+esc(folderName(current.herbFolderId))+'</span>'+
+  '<div class="awb-source-buttons">'+button('gm-pick-herbs','Pick herb folder')+
+  (current.herbFolderId?button('gm-clear-herbs','Clear folder'):'')+'</div>'+
+  '<small>Item compendiums (optional)</small><span>'+esc(packNames(current.herbPackIds))+'</span>'+
+  button('gm-pick-herb-packs','Choose herb compendiums')+'</div>'+
+  '<div><strong>Reagent sources</strong><small>World Item folder (optional)</small><span>'+esc(folderName(current.reagentFolderId))+'</span>'+
+  '<div class="awb-source-buttons">'+button('gm-pick-reagents','Pick reagent folder')+
+  (current.reagentFolderId?button('gm-clear-reagents','Clear folder'):'')+'</div>'+
+  '<small>Item compendiums (optional)</small><span>'+esc(packNames(current.reagentPackIds))+'</span>'+
+  button('gm-pick-reagent-packs','Choose reagent compendiums')+'</div>'+
   '</div>';
  const recursive='<label class="awb-directory-recursive"><input type="checkbox" data-directory-recursive '+(current.includeSubfolders?'checked':'')+'> Include subfolders recursively</label>';
  const nav='<div class="awb-subtabs">'+[
@@ -60,13 +74,13 @@ export function directoryView(app){
  let body='';
  if(kind==='recipes')body=recipeEditorView(app);
  else if(kind==='directories'){
-  body='<p class="awb-muted">Select World Item folders. Herbs must link to their permitted reagent Items in Description using Foundry content links. A refresh previews additions, changes and problems before replacing the world catalogue.</p>'+
+  body='<p class="awb-muted">Choose World Item folders, Item compendium packs, or both. Each herb description must link to its permitted reagent Items; refresh previews changes before updating this world.</p>'+
    foldersBar+recursive+
    '<div class="awb-folder-summary">'+
    '<span><strong>'+Number(r.validHerbs||0)+'</strong> herbs imported</span>'+
    '<span><strong>'+Number(r.mappedReagents||0)+'/9</strong> reagents mapped</span>'+
    '<span><strong>'+issues.length+'</strong> notices</span></div>'+
-   '<div class="awb-bottom"><small>Refresh never deletes Items from any character inventory.</small>'+button('gm-refresh','Refresh from directory','class="awb-primary"')+'</div>'+
+   '<div class="awb-bottom"><small>Refresh never deletes Items from any character inventory.</small>'+button('gm-refresh','Refresh from sources','class="awb-primary"')+'</div>'+
    '<h3>Last scan</h3><p class="awb-muted">'+esc(r.scannedAt||'No folder scan has been performed')+
    ' · Added '+(r.added?.length||0)+' · Changed '+(r.changed?.length||0)+' · Removed '+(r.removed?.length||0)+'</p>'+
    '<h3>Validation</h3>'+noteList(issues);
@@ -105,7 +119,7 @@ export function directoryView(app){
    if(kind==='reagents'&&(app.gmFilter==='issues'||issues.some(i=>i.type==='reagent'))){
     body+='<h3>Reagent warnings</h3>'+noteList(issues.filter(i=>i.type==='reagent'));
    }
-   body+='<div class="awb-bottom"><small>'+(kind==='reagents'?'Automatically mapped from directory names; manual overrides are permitted. Refresh afterwards to update herb links.':'Existing potion outputs are mapped independently of the two folders.')+
+   body+='<div class="awb-bottom"><small>'+(kind==='reagents'?'Discovered from selected World Items and compendiums. Drag a compendium Item or enter its UUID to override a classification; then refresh.':'Potion outputs can reference World Items or compendium Items independently of these source selections.')+
      '</small>'+button('gm-save','Save '+kind+' mappings','class="awb-primary"')+'</div>';
   }
  }
@@ -129,6 +143,31 @@ export async function directoryAction(app,action,target){
   const possible=['name','reverse','tier'];
   app.gmSort=possible[(possible.indexOf(app.gmSort)+1)%possible.length];return true;
  }
+ if(action==='gm-clear-herbs'||action==='gm-clear-reagents'){
+  const key=action==='gm-clear-herbs'?'herbFolderId':'reagentFolderId';
+  app.directoryDraft={...normalizeDirectoryConfig(config(app)),[key]:''};
+  return true;
+ }
+ if(action==='gm-pick-herb-packs'||action==='gm-pick-reagent-packs'){
+  const isHerb=action==='gm-pick-herb-packs',key=isHerb?'herbPackIds':'reagentPackIds';
+  const packs=itemPacks(game.packs).sort((a,b)=>packLabel(a).localeCompare(packLabel(b)));
+  if(!packs.length)throw new Error('No accessible Item compendium packs are available.');
+  const selected=new Set(normalizeDirectoryConfig(config(app))[key]);
+  const choices=packs.map(pack=>'<label class="awb-pack-choice"><input type="checkbox" name="itemPacks" value="'+
+   esc(pack.collection)+'" '+(selected.has(pack.collection)?'checked':'')+'><span>'+
+   esc(packLabel(pack))+'</span><small>'+esc(pack.collection)+'</small></label>').join('');
+  const chosen=await foundry.applications.api.DialogV2.wait({
+   window:{title:isHerb?'Choose Herb Compendiums':'Choose Reagent Compendiums'},
+   content:'<div class="awb awb-pack-picker"><p>Select any number of Item compendiums. Leave unchecked to use World Items only.</p>'+
+    choices+'</div>',
+   buttons:[{action:'choose',label:'Use selected packs',default:true,
+    callback:(_event,button)=>[...button.form.querySelectorAll('input[name="itemPacks"]:checked')].map(x=>x.value)},
+    {action:'cancel',label:'Cancel'}],rejectClose:false
+  });
+  if(!chosen)return true;
+  app.directoryDraft={...normalizeDirectoryConfig(config(app)),[key]:chosen};
+  return true;
+ }
  if(action==='gm-pick-herbs'||action==='gm-pick-reagents'){
   const folders=itemFolders(game).sort((a,b)=>folderLabel(a,game).localeCompare(folderLabel(b,game)));
   if(!folders.length)throw new Error('Create a World Item folder before selecting a directory.');
@@ -142,8 +181,7 @@ export async function directoryAction(app,action,target){
   });
   if(!choice)return true;
   app.directoryDraft={...config(app),[key]:choice};
-  // Automatically preview/apply once both directories have been chosen.
-  if(app.directoryDraft.herbFolderId&&app.directoryDraft.reagentFolderId)await refreshWithConfirmation(app);
+  // Source selections are staged until the GM reviews Refresh from sources.
   return true;
  }
  if(action==='gm-refresh'){await refreshWithConfirmation(app);return true;}
@@ -151,13 +189,16 @@ export async function directoryAction(app,action,target){
 }
 
 async function refreshWithConfirmation(app){
- const proposed=config(app),scan=app.services.previewDirectories(proposed),r=scan.report;
+ const proposed=normalizeDirectoryConfig(config(app));
+ if(!hasSources(proposed,'herb')||!hasSources(proposed,'reagent'))
+  throw new Error('Choose at least one World Item folder or Item compendium for herbs and for reagents.');
+ const scan=await app.services.previewDirectories(proposed),r=scan.report;
  const shortIssues=r.issues.slice(0,12).map(i=>'<li><strong>'+esc(i.name)+'</strong>: '+esc(i.problem)+'</li>').join('');
  const issueText=r.issues.length?'<h3>Validation notices ('+r.issues.length+')</h3><ul>'+shortIssues+'</ul>'+(r.issues.length>12?'<p>Additional issues will appear in GM validation.</p>':''):'<p>No validation notices.</p>';
  const content='<div class="awb awb-directory-preview"><p><strong>'+r.validHerbs+' valid herbs</strong> from '+r.herbItems+' Items; <strong>'+r.mappedReagents+'/9 reagents</strong> from '+r.reagentItems+' Items.</p>'+
   '<p>Changes: '+r.added.length+' added, '+r.changed.length+' updated, '+r.removed.length+' removed.</p>'+
   '<p>Each herb must have at least one valid linked reagent Item. Invalid herbs will be excluded until corrected.</p>'+
-  issueText+'<p>Apply this directory snapshot? Existing character inventory Items are not deleted.</p></div>';
+  issueText+'<p>Apply this world/compendium catalogue? Existing character inventory Items are not deleted.</p></div>';
  const accepted=await foundry.applications.api.DialogV2.confirm({
   window:{title:'Alchemy — Preview Directory Refresh'},content,
   yes:{label:'Apply scan'},no:{label:'Cancel'},rejectClose:false

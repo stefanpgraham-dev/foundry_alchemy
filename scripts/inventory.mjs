@@ -10,18 +10,19 @@ export async function template(uuid){
   return doc?.documentName==='Item'?doc:null;
 }
 /** Copy-safe identity: actor Item UUIDs are intentionally never compared to their World Item UUID alone. */
-export function identity(item,configured,key=null,mappedName=''){
+export function identity(item,configured,key=null,mappedName='',aliases=[]){
   if(!configured || !item)return false;
+  const allowed=new Set([configured,...(Array.isArray(aliases)?aliases:[])]);
   // A stale classification from another world/template must not override the new mapping.
   const previousCategory=item.getFlag?.(MID,'category');
   const previousSource=item.getFlag?.(MID,'sourceUuid');
-  if(key && previousCategory===key && (!previousSource || previousSource===configured))return true;
+  if(key && previousCategory===key && (!previousSource || allowed.has(previousSource)))return true;
   const provenance=[
     item.getFlag?.(MID,'sourceUuid'),item.flags?.core?.sourceId,
     item._stats?.compendiumSource,item.system?.source?.uuid
   ];
-  if(provenance.some(p=>p && p===configured))return true;
-  if(item.uuid===configured)return true;
+  if(provenance.some(p=>p && allowed.has(p)))return true;
+  if(allowed.has(item.uuid))return true;
   // World Items gain different actor IDs. Use their stable template name as fallback.
   const source=configured.startsWith('Item.')?game.items?.get(configured.slice(5)):null;
   const names=[mappedName,source?.name].filter(Boolean);
@@ -32,7 +33,7 @@ export function findMatchedInventory(actor,mappings,{selectedIds=null}={}){
   for(const item of actor.items){
     if(getQty(item)<1 || (chosen&&!chosen.has(item.id)))continue;
     for(const [key,uuid] of Object.entries(mappings.reagents||{})){
-      if(KEYS.includes(key)&&identity(item,uuid,key,mappings.reagentNames?.[key])){
+      if(KEYS.includes(key)&&identity(item,uuid,key,mappings.reagentNames?.[key],mappings.reagentAliases?.[key])){
         found.push({id:item.id,key,quantity:getQty(item),item});break;
       }
     }
@@ -44,7 +45,7 @@ export function findHerbs(actor,mappings,herbs){
   for(const herb of herbs){
     const uuid=mappings.herbs?.[herb.id];if(!uuid)continue;
     for(const item of actor.items){
-      if(getQty(item)>0 && identity(item,uuid,herb.id,mappings.herbNames?.[herb.id])){
+      if(getQty(item)>0 && identity(item,uuid,herb.id,mappings.herbNames?.[herb.id],mappings.herbAliases?.[herb.id])){
         matched.push({herb,item,quantity:getQty(item)});
       }
     }
@@ -121,7 +122,7 @@ export async function applyInventory(actor, consumed, outputs, mappings) {
  const additions=[];
  for(const {out,data,templateUuid,id} of sources){
   const matching=actor.items.contents.find(it=> !qtyMap.has(it.id) && getQty(it)>0 &&
-    (templateUuid?identity(it,templateUuid,out.kind==='reagent'?id:null,out.kind==='reagent'?mappings.reagentNames?.[id]:''):it.getFlag?.(MID,'recipeId')===id));
+    (templateUuid?identity(it,templateUuid,out.kind==='reagent'?id:null,out.kind==='reagent'?mappings.reagentNames?.[id]:'',out.kind==='reagent'?mappings.reagentAliases?.[id]:[]):it.getFlag?.(MID,'recipeId')===id));
   if(matching){
     const target=updates.find(u=>u._id===matching.id);
     if(target)target['system.quantity']+=out.quantity;
@@ -149,7 +150,7 @@ export function planExtract(actor,herbId,actorItemId,qty,herbs,mappings,reagentK
  const herb=herbs.find(h=>h.id===herbId);
  if(!herb || !herb.reagents.includes(reagentKey))throw new Error('This herb cannot produce the selected reagent.');
  const item=actor.items.get(actorItemId);
- if(!item || !identity(item,mappings.herbs?.[herb.id],herb.id,mappings.herbNames?.[herb.id]))throw new Error('That herb is not mapped to this item.');
+ if(!item || !identity(item,mappings.herbs?.[herb.id],herb.id,mappings.herbNames?.[herb.id],mappings.herbAliases?.[herb.id]))throw new Error('That herb is not mapped to this item.');
  const quantity=assertQty(qty,1000);
  if(getQty(item)<quantity)throw new Error('Not enough herbs.');
  return {consume:[{id:item.id,quantity}],outputs:[{kind:'reagent',id:reagentKey,quantity}]};

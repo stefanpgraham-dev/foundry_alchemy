@@ -1,7 +1,7 @@
 import {KEYS, TIERS, COLOURS, DC, HOURS,recipeTier,percentageYield,chanceSucceeds,classifyHerbs,assertQty} from './engine.mjs';
 import {MID,getQty,normal,setting,findMatchedInventory,findHerbs,markActorInventory,planBrew,planExtract,planDowngrade,applyInventory,changeOutputs,template,outputData} from './inventory.mjs';
 import {AlchemyWorkbench} from './workbench.mjs';
-import {scanDirectories,defaultDirectoryConfig} from './directories.mjs';
+import {scanConfiguredSources,defaultDirectoryConfig,normalizeDirectoryConfig,sourceAliases} from './directories.mjs';
 import {recipeDC,recipeHours,seedDefaults,validateLibrary} from './recipes.mjs';
 import {brewingEligibility,rollAlchemyToolCheck,naturalD20Result} from './eligibility.mjs';
 
@@ -9,7 +9,7 @@ const DIALOG=()=>foundry.applications.api.DialogV2;
 const esc=v=>foundry.utils.escapeHTML(String(v??''));
 const slug=s=>String(s).replace(/_/g,' ');
 const actors=()=>game.actors.contents.filter(a=>a.testUserPermission(game.user,'OWNER'));
-const blankMappings=()=>({reagents:{},herbs:{},outputs:{}});
+const blankMappings=()=>({reagents:{},herbs:{},reagentAliases:{},herbAliases:{},reagentOverrides:{},outputs:{}});
 const openWorkbenches=new Set();
 let recipes=[],herbs=[],defaultRecipes=[];
 const locks=new Set(),waiting=new Map(),decisions=new Map();
@@ -144,19 +144,24 @@ async function saveRecipes(entries){
 async function setupHub(){return hub({tab:'gm'});}
 async function saveMappings(kind,values){
  if(!game.user.isGM)throw new Error('GM access required.');
- if(!['reagents','outputs'].includes(kind))throw new Error('Herbs are discovered from the selected Item folder, not mapped individually.');
+ if(!['reagents','outputs'].includes(kind))throw new Error('Herbs are discovered from selected World Item folders and/or Item compendiums, not mapped individually.');
  const map=structuredClone(setting()||blankMappings());
  const source=kind==='reagents'?KEYS.map(key=>({id:key})):recipes;
  const accepted=new Set(source.map(x=>x.id));
  const result=Object.fromEntries(Object.entries(values||{}).filter(([key,uuid])=>accepted.has(key)&&typeof uuid==='string'&&uuid.trim()).map(([key,uuid])=>[key,uuid.trim()]));
- const names={};
+ const names={},aliases={};
  for(const [key,uuid] of Object.entries(result)){
   const item=await template(uuid);
   if(!item)throw new Error('Invalid Item UUID for '+key+': '+uuid);
   names[key]=item.name;
+  if(kind==='reagents')aliases[key]=[...new Set([...sourceAliases(item),...(map.reagentAliases?.[key]||[])])];
  }
  map[kind]=result;
- if(kind==='reagents')map.reagentNames=names;
+ if(kind==='reagents'){
+  map.reagentNames=names;
+  map.reagentOverrides={...result}; // Explicit GM mappings remain authoritative on refresh.
+  map.reagentAliases=aliases;
+ }
  await game.settings.set(MID,'mappings',map);
  if(kind==='reagents'){
   let marked=0;
@@ -168,17 +173,22 @@ async function saveMappings(kind,values){
  }else ui.notifications.info('Alchemy: Saved '+Object.keys(result).length+' potion output mappings.');
  return Object.keys(result).length;
 }
-function previewDirectories(config){
+async function previewDirectories(config){
  if(!game.user.isGM)throw new Error('GM access required.');
- return scanDirectories({folders:game.folders,items:game.items},config,{herbs,mappings:setting()});
+ return scanConfiguredSources({folders:game.folders,items:game.items},config,{herbs,mappings:setting()},{
+  packs:game.packs,resolveUuid:uuid=>fromUuid(uuid)
+ });
 }
 async function refreshDirectories(config){
  if(!game.user.isGM)throw new Error('GM access required.');
- const selection={...defaultDirectoryConfig(),...(config||game.settings.get(MID,'directoryConfig'))};
- const scan=previewDirectories(selection);
+ const selection=normalizeDirectoryConfig(config||game.settings.get(MID,'directoryConfig'));
+ const scan=await previewDirectories(selection);
  const oldMap=structuredClone(setting()||blankMappings()),oldHerbs=herbs;
  const oldConfig=game.settings.get(MID,'directoryConfig'),oldReport=game.settings.get(MID,'directoryReport');
- const nextMap={...oldMap,reagents:scan.reagentMappings,reagentNames:scan.reagentNames,herbs:scan.herbMappings,herbNames:scan.herbNames};
+ const nextMap={...oldMap,
+  reagents:scan.reagentMappings,reagentNames:scan.reagentNames,reagentAliases:scan.reagentAliases,
+  herbs:scan.herbMappings,herbNames:scan.herbNames,herbAliases:scan.herbAliases
+ };
  try{
   await game.settings.set(MID,'mappings',nextMap);
   await game.settings.set(MID,'herbCatalog',scan.herbs);

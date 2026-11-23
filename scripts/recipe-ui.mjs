@@ -1,5 +1,5 @@
 import {KEYS,DC,HOURS,recipeTier} from './engine.mjs';
-import {reagentKeyFromName} from './directories.mjs';
+import {reagentKeyFromName,sourceAliases} from './directories.mjs';
 import {recipeDC,recipeHours,recipeTest,validateRecipe,parseRecipeImport,exportRecipeLibrary,recipeComparison,mergeRecipeLibraries,importMissingDefaults,restoreDefault,recipeWarnings} from './recipes.mjs';
 import {findMatchedInventory} from './inventory.mjs';
 const esc=v=>foundry.utils.escapeHTML(String(v??''));
@@ -276,7 +276,12 @@ export async function recipeEditorDrop(app,event){
   const match=Object.entries(map.reagents||{}).find(([,source])=>source===uuid);
   const key=match?.[0]||reagentKeyFromName(doc.name);
   if(!KEYS.includes(key))throw Error('Item is not a recognised reagent. Map its classification first.');
-  if(map.reagents?.[key]&&map.reagents[key]!==uuid)throw Error('Use the mapped '+label(key)+' Item.');
+  if(map.reagents?.[key]&&map.reagents[key]!==uuid){
+   const allowed=new Set(map.reagentAliases?.[key]||[]);
+   const fromSource=sourceAliases(doc);
+   if(!allowed.has(uuid)&&!fromSource.includes(map.reagents[key])&&!fromSource.some(x=>allowed.has(x)))
+    throw Error('That Item is not the mapped '+label(key)+' or an identified compendium/World Item equivalent.');
+  }
   app.recipeDraft.cost[key]=(app.recipeDraft.cost[key]||0)+1;app.recipeDirty=true;
  }
  app.recipeTestResult=null;
