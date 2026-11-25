@@ -47,7 +47,7 @@ function editor(app){
   '; change: '+esc(Object.entries(test.plan.return).map(([k,v])=>label(k)+' ×'+v).join(', ')||'none')+'</p>':
   '<p class="awb-alert awb-alert-warn">'+esc(test.reason)+'</p>')+'</div>':'';
  return '<div class="awb-recipe-editor"><h2>'+esc(r.name)+'</h2>'+
-  '<p class="awb-muted">'+label(tier)+' · DC '+recipeDC(r)+' · '+recipeHours(r)+' hours</p>'+
+  '<p class="awb-muted">'+label(tier)+' · DC '+recipeDC(r,app.services.rules?.())+' · '+recipeHours(r,app.services.rules?.())+' hours</p>'+
   '<label class="awb-field"><span>Recipe name</span><input data-recipe-name maxlength="120" value="'+esc(r.name)+'"></label>'+
   '<h3>Potion output</h3><div class="awb-recipe-drop awb-recipe-output" data-recipe-drop="output">'+
   '<img class="awb-art awb-featured" src="'+esc(outputImage(app,r))+'" alt=""><div><strong>'+
@@ -82,7 +82,7 @@ export function recipeEditorView(app){
   '<div class="awb-recipe-drop awb-recipe-create" data-recipe-drop="new"><i class="fas fa-plus-circle"></i> Drop potion Item to add a recipe</div>'+
   '<div class="awb-recipe-library-list">'+list.map(r=>btn('gm-recipe-select',
   '<img class="awb-art" src="'+esc(outputImage(app,r))+'" alt=""><span><strong>'+esc(r.name)+'</strong><small>'+
-  label(recipeTier(r))+' · DC '+recipeDC(r)+' · '+(r.enabled?'Enabled':'Disabled')+' · '+r.source+'</small></span>',
+  label(recipeTier(r))+' · DC '+recipeDC(r,app.services.rules?.())+' · '+(r.enabled?'Enabled':'Disabled')+' · '+r.source+'</small></span>',
   'data-id="'+esc(r.id)+'" class="awb-recipe-library-card '+(app.recipeId===r.id?'selected':'')+'"')).join('')+'</div>'+
   '<div class="awb-recipe-library-tools">'+btn('gm-recipe-import-missing','Import Missing Defaults')+
   btn('gm-recipe-export','Export JSON')+
@@ -204,7 +204,7 @@ export async function recipeEditorAction(app,action,target){
  if(action==='gm-recipe-test'){
   syncDraft(app);
   const clean=validateRecipe(app.recipeDraft,{allowMissingOutput:true});
-  app.recipeTestResult=recipeTest(clean,app.recipeTestBatch,findMatchedInventory(app.actor,app.services.mappings()));
+  app.recipeTestResult=recipeTest(clean,app.recipeTestBatch,findMatchedInventory(app.actor,app.services.mappings()),app.services.rules?.());
   return true;
  }
  return false;

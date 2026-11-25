@@ -3,6 +3,7 @@ import {getQty,findMatchedInventory,findHerbs,inventoryAudit,planBrew,setting,no
 import {captureWorkbenchViewport,restoreWorkbenchViewport} from './viewport.mjs';
 import {directoryView,directoryAction} from './directory-ui.mjs';
 import {recipeEditorInput,recipeEditorImport,recipeEditorDrop} from './recipe-ui.mjs';
+import {rulesEditorInput} from './rules-ui.mjs';
 import {recipeDC,recipeHours} from './recipes.mjs';
 
 const esc=value=>foundry.utils.escapeHTML(String(value??''));
@@ -34,6 +35,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     this.selectedRefineId=null;this.refineTier=null;this.refineQty=1;
     this.change='highest';this.selectedIds=null;
     this.gmKind='directories';this.gmSearch='';this.gmFilter='all';this.gmSort='name';this.mappingDraft=null;this.directoryDraft=null;
+     this.rulesDraft=null;this.rulesDirty=false;
      this.herbQuery='';this.herbFilter='all';this.herbSort='name';
     this.busy=false;this.notice=null;
   }
@@ -62,7 +64,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     const inventory=this._inventory();
     return this.services.recipes.filter(recipe=>recipe.enabled!==false).map(recipe=>({
       recipe,
-      max:maximumCraftableBatch(recipe,inventory,100)
+      max:maximumCraftableBatch(recipe,inventory,this.services.rules?.().maxBatch??100)
     }));
   }
   _templateImage(uuid){
@@ -102,7 +104,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
       const rarity=recipeTier(recipe),selected=chosen?.recipe.id===recipe.id;
       const artwork=this._templateImage(mapping.outputs?.[recipe.id]);
       return `<button class="awb-recipe-card ${selected?'selected':''} ${max?'':'disabled'}" type="button" data-recipe="${esc(recipe.id)}" ${max?'':'disabled'}>
-        ${icon(artwork,recipe.name)}<span class="awb-recipe-content"><strong>${esc(recipe.name)}</strong><small>${titleCase(rarity)} · DC ${recipeDC(recipe)}</small></span>
+        ${icon(artwork,recipe.name)}<span class="awb-recipe-content"><strong>${esc(recipe.name)}</strong><small>${titleCase(rarity)} · DC ${recipeDC(recipe,this.services.rules?.())}</small></span>
         <span class="awb-max">${max?`×${max}`:'Unavailable'}</span></button>`;
     }).join('');
     const recipe=chosen?.recipe,tier=recipe?recipeTier(recipe):'common';
@@ -115,7 +117,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
         <div class="awb-recipe-list">${cards||'<p class="awb-empty">No recipes match your search.</p>'}</div>
       </section>
       <section class="awb-panel awb-detail">${accessNotice}${recipe?`
-        <div class="awb-detail-head">${icon(this._templateImage(mapping.outputs?.[recipe.id]),recipe.name,'awb-featured')}<div><p class="awb-eyebrow">${esc(titleCase(tier))} formula</p><h2>${esc(recipe.name)}</h2><div class="awb-pills">${tag(`DC ${recipeDC(recipe)}`)}${tag(`${recipeHours(recipe)} hours`)}${tag(`Max ${chosen.max}`)}</div></div></div>
+        <div class="awb-detail-head">${icon(this._templateImage(mapping.outputs?.[recipe.id]),recipe.name,'awb-featured')}<div><p class="awb-eyebrow">${esc(titleCase(tier))} formula</p><h2>${esc(recipe.name)}</h2><div class="awb-pills">${tag(`DC ${recipeDC(recipe,this.services.rules?.())}`)}${tag(`${recipeHours(recipe,this.services.rules?.())} hours`)}${tag(`Max ${chosen.max}`)}</div></div></div>
         <h3>Ingredients per potion</h3><div class="awb-material-list">${Object.entries(recipe.cost).map(([k,q])=>marker(k,q)).join('')}</div>
         <div class="awb-batch-control"><div><strong>Batch size</strong><small>One brew check · same preparation time</small></div><div class="awb-stepper"><button type="button" data-action="batch-minus" ${this.batch<=1?'disabled':''}>−</button><output>${this.batch}</output><button type="button" data-action="batch-plus" ${this.batch>=chosen.max?'disabled':''}>+</button></div></div>
         <h3>Ingredient allocation</h3>
@@ -179,6 +181,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
   _input(event){
     const el=event.target;
     if(el.matches?.('[data-search="recipes"]')){this.search=el.value;this._filterInput(el,'recipes');}
+    if(rulesEditorInput(this,event))return;
     if(recipeEditorInput(this,event))return;
     if(el.matches?.('[data-search="gm"]')){this.gmSearch=el.value;this._filterInput(el,'gm');}
     if(el.matches?.('[data-search="herbs"]')){
@@ -194,6 +197,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
   }
   _change(event){
     const el=event.target;
+    if(el.matches?.('[data-rule-field]')){rulesEditorInput(this,event);return;}
     if(el.matches?.('[data-recipe-filter],[data-recipe-sort]')){recipeEditorInput(this,event);return;}
     if(el.matches?.('[data-recipe-import]')){
       const file=el.files?.[0];
@@ -252,7 +256,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     const rarity=recipeTier(recipe);
     const confirmation=await foundry.applications.api.DialogV2.confirm({
       window:{title:'Confirm Alchemical Brewing'},
-      content:`<div class="awb-confirm"><h2>${esc(recipe.name)} ×${this.batch}</h2><p>Intelligence + Alchemist's Supplies · DC ${recipeDC(recipe)} · ${recipeHours(recipe)} hours</p><p><strong>Ingredients:</strong> ${esc(plan.consume.map(x=>`${this.actor.items.get(x.id)?.name} ×${x.quantity}`).join(', '))}</p><p><strong>Returned change:</strong> ${esc(fmt(Object.entries(plan.return).map(([id,quantity])=>({id,quantity}))))}</p><p>Failure may consume the ingredients without producing potions.</p></div>`,
+      content:`<div class="awb-confirm"><h2>${esc(recipe.name)} ×${this.batch}</h2><p>Intelligence + Alchemist's Supplies · DC ${recipeDC(recipe,this.services.rules?.())} · ${recipeHours(recipe,this.services.rules?.())} hours</p><p><strong>Ingredients:</strong> ${esc(plan.consume.map(x=>`${this.actor.items.get(x.id)?.name} ×${x.quantity}`).join(', '))}</p><p><strong>Returned change:</strong> ${esc(fmt(Object.entries(plan.return).map(([id,quantity])=>({id,quantity}))))}</p><p>Failure may consume the ingredients without producing potions.</p></div>`,
       yes:{label:'Roll & Brew'},no:{label:'Cancel'},rejectClose:false
     });
     if(!confirmation)return;

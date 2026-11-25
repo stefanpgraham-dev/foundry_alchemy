@@ -134,13 +134,15 @@ console.log(`Alchemy Workbench smoke tests passed: ${checks} assertions; herb ca
 const hooks={};
 globalThis.Hooks={once(name,fn){hooks[name]=fn;},on(){}};
 const moduleEntry={};const registered=[];let socketChannel='',socketHandler;
+const {defaultRules}=await import('../scripts/rules.mjs');
+let startupRules=defaultRules();
 let startupLibrary={initialized:false,recipes:[]};
 globalThis.game={
  modules:new Map([['alchemy-workbench',moduleEntry]]),
  settings:{
     register:(id,key,config)=>registered.push({id,key,config}),
-    get:(_id,key)=>key==='herbCatalog'?herbs:key==='recipeLibrary'?startupLibrary:key==='mappings'?{reagents:{},herbs:{},outputs:{}}:{issues:[]},
-    set:async(_id,key,value)=>{if(key==='recipeLibrary')startupLibrary=value;return value;}
+    get:(_id,key)=>key==='rules'?startupRules:key==='herbCatalog'?herbs:key==='recipeLibrary'?startupLibrary:key==='mappings'?{reagents:{},herbs:{},outputs:{}}:{issues:[]},
+    set:async(_id,key,value)=>{if(key==='recipeLibrary')startupLibrary=value;if(key==='rules')startupRules=value;return value;}
   },
  system:{id:'dnd5e'},
  socket:{on:(id,fn)=>{socketChannel=id;socketHandler=fn;}},
@@ -156,7 +158,7 @@ globalThis.fetch=async url=>{
 await import('../scripts/module.mjs');
 check(typeof hooks.init==='function'&&typeof hooks.ready==='function','Foundry startup hooks registered');
 await hooks.init();
-check(registered.length===6,'world recipe, directory, catalogue, report, mappings and pending settings registered');
+check(registered.length===7,'world rules, recipe, directory, catalogue, report, mappings and pending settings registered');
 check(typeof moduleEntry.api.open==='function'&&typeof moduleEntry.api.setup==='function','UI API available');
 game.user={id:'gm',isGM:true};
 await hooks.ready();
@@ -182,7 +184,7 @@ const mismatched={...mappedCopies,reagents:{common_curative:'Item.another-world-
 check(!identity(copied,'Item.another-world-item','common_curative'),'old category source flag must not impersonate an unrelated reagent template');
 check(inventoryAudit(actorCopied,{...mappedCopies,reagents:{}},herbs).unmapped.length===1,'inventory audit identifies unmatched copies');
 const {AlchemyWorkbench}=await import('../scripts/workbench.mjs');
-const uiServices={recipes:startupLibrary.recipes,defaultRecipes:recipes,herbs,mappings:()=>mappedCopies,submit:async()=>'',saveMappings:async()=>0,saveRecipes:async()=>0,pending:async()=>null,brewingEligibility:()=>({ok:true,errors:[]}),directories:()=>({herbFolderId:'',reagentFolderId:'',includeSubfolders:true}),directoryReport:()=>({issues:[]})};
+const uiServices={recipes:startupLibrary.recipes,defaultRecipes:recipes,herbs,mappings:()=>mappedCopies,rules:()=>startupRules,saveRules:async()=>0,submit:async()=>'',saveMappings:async()=>0,saveRecipes:async()=>0,pending:async()=>null,brewingEligibility:()=>({ok:true,errors:[]}),directories:()=>({herbFolderId:'',reagentFolderId:'',includeSubfolders:true}),directoryReport:()=>({issues:[]})};
 game.user={id:'gm',isGM:true};
 const panel=new AlchemyWorkbench(actorCopied,uiServices);
 const html=await panel._renderHTML();
@@ -204,6 +206,12 @@ const editHtml=await editingPanel._renderHTML();
 check(editHtml.includes('data-recipe-drop="output"')&&editHtml.includes('data-recipe-drop="reagent"'),'recipe editor includes Item drop zones');
 check(editHtml.includes('data-action="gm-recipe-save"'),'GM can save edited recipes');
 check(editHtml.includes('Import Missing Defaults')&&editHtml.includes('Export JSON'),'recipe library supports reimport and JSON export');
+const rulesPanel=new AlchemyWorkbench(actorCopied,uiServices);
+rulesPanel.tab='gm';rulesPanel.gmKind='rules';
+const rulesHtml=await rulesPanel._renderHTML();
+check(rulesHtml.includes('data-rule-field="dc.common"')&&rulesHtml.includes('data-rule-field="critical.naturalThreshold"'),'GM rules editor has DC and critical threshold');
+check(rulesHtml.includes('data-rule-field="failure.partialDieSides"')&&rulesHtml.includes('data-rule-field="failure.twoPassMode"'),'GM rules editor exposes failure mechanism');
+check(rulesHtml.includes('data-action="gm-rules-reset"')&&rulesHtml.includes('data-action="gm-rules-save"'),'GM rules editor offers save and reset');
 globalThis.fetch=fetchNative;
 console.log('Foundry startup mock passed.');
 
@@ -250,11 +258,12 @@ game.user=gmUser;
 game.users={filter:fn=>activeUsers.filter(fn),get:id=>activeUsers.find(x=>x.id===id)};
 game.actors={get:id=>id==='test'?actorGame:null};
 game.socket.emit=(channel,p)=>{responses.push(p)};
-game.settings.get=(id,key)=>key==='mappings'?mappings:key==='pending'?pendingRecords:key==='recipeLibrary'?startupLibrary:{issues:[]};
+game.settings.get=(id,key)=>key==='rules'?startupRules:key==='mappings'?mappings:key==='pending'?pendingRecords:key==='recipeLibrary'?startupLibrary:{issues:[]};
 game.settings.set=async(id,key,value)=>{
  if(key==='pending')pendingRecords=value;
  else if(key==='mappings')mappings=value;
  else if(key==='recipeLibrary')startupLibrary=value;
+ else if(key==='rules')startupRules=value;
  return value;
 };
 function eventuallyResponse(){
@@ -276,12 +285,18 @@ denied=await eventuallyResponse();
 check(!denied.ok&&/proficiency/.test(denied.message),'brew rejected without proficiency');
 check(getQty(untrained.items.get('untrained'))===3&&postedRolls.length===0,'missing proficiency cannot consume or roll');
 game.actors.get=id=>id==='test'?actorGame:null;
+// Changing the GM world DC affects the server's next native Alchemist's Supplies check.
+await moduleEntry.api.saveRules({...startupRules,dc:{...startupRules.dc,common:14},maxBatch:3});
+check(moduleEntry.api.getRules().dc.common===14,'GM save exposes new world DC');
 rollValues=[15];
 socketHandler({type:'request',nonce:'success',mode:'brew',actorId:'test',recipeId:'potion-of-healing',batch:2,selectedIds:['c'],change:'highest',doublePass:'extra'},'player');
 let reply=await eventuallyResponse();
 check(reply.ok===true,'authenticated player can request a brew from active GM');
 check(postedRolls.length===1&&postedRolls[0].formula.startsWith('1d20'),'one native tool check triggers Dice So Nice chat');
 check(nativeCalls[0].config.tool==='alchemist'&&nativeCalls[0].config.ability==='int','brew uses native Intelligence (Alchemist Supplies) check');
+check(nativeCalls[0].config.target===14,'GM-configured DC reaches native tool check');
+await moduleEntry.api.saveRules(defaultRules());
+check(moduleEntry.api.getRules().dc.common===10,'GM restore returns default DC');
 check(actorGame.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===2),'successful brew awards 2 potion items');
 check(!actorGame.items.get('c'),'initial two-potion batch consumed 6 curatives');
 // Simulate a failed brew with both follow-up dice succeeding: ingredients consumed, job pending.

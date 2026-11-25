@@ -2,6 +2,7 @@
 import {itemFolders,folderLabel,itemPacks,packLabel,normalizeDirectoryConfig} from './directories.mjs';
 import {KEYS} from './engine.mjs';
 import {recipeEditorView,recipeEditorAction} from './recipe-ui.mjs';
+import {rulesView,rulesEditorAction} from './rules-ui.mjs';
 
 const esc=value=>foundry.utils.escapeHTML(String(value??''));
 const label=value=>String(value||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
@@ -69,10 +70,11 @@ export function directoryView(app){
  const nav='<div class="awb-subtabs">'+[
   ['directories','Directories'],['herbs','Herbs ('+app.services.herbs.length+')'],
   ['reagents','Reagents ('+Object.keys(map.reagents||{}).length+'/9)'],
-  ['recipes','Recipes ('+app.services.recipes.length+')']
+  ['recipes','Recipes ('+app.services.recipes.length+')'],['rules','Rules']
  ].map(([id,name])=>'<button type="button" data-gm-kind="'+id+'" class="'+(kind===id?'active':'')+'">'+esc(name)+'</button>').join('')+'</div>';
  let body='';
  if(kind==='recipes')body=recipeEditorView(app);
+  else if(kind==='rules')body=rulesView(app);
  else if(kind==='directories'){
   body='<p class="awb-muted">Choose World Item folders, Item compendium packs, or both. Each herb description must link to its permitted reagent Items; refresh previews changes before updating this world.</p>'+
    foldersBar+recursive+
@@ -130,6 +132,7 @@ export function directoryView(app){
 export async function directoryAction(app,action,target){
  if(!game.user.isGM)throw new Error('GM privileges required.');
  if(action.startsWith('gm-recipe-'))return recipeEditorAction(app,action,target);
+  if(action.startsWith('gm-rules-'))return rulesEditorAction(app,action);
  if(action==='gm-open-item'){
   const doc=target.dataset.uuid?await fromUuid(target.dataset.uuid):null;
   if(doc?.sheet)doc.sheet.render(true);

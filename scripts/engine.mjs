@@ -23,7 +23,7 @@ export function requirements(recipe, batch) {
 }
 export function percentageYield(batch, pct) {
   const n=assertQty(batch), p=Number(pct);
-  if (!Number.isSafeInteger(p)||p<0||p>800) throw new Error('Invalid percentage yield.');
+  if (!Number.isSafeInteger(p)||p<0||p>10000) throw new Error('Invalid percentage yield.');
   const product=n*p;
   return {guaranteed:Math.floor(product/100), fractional:product%100};
 }

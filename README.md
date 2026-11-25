@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.4.3 — mixed World Item and compendium herb/reagent sources.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.5.0 — GM-configurable brewing rules and world mechanics.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -66,6 +66,21 @@ Existing default recipes can function without a linked potion Item using the pre
 **Pending brew safety:** When a brew requires additional time, the GM stores the complete recipe and a snapshot of the output Item. Editing/deleting the formula or changing the output mapping later will not alter that pending reward. Pending jobs created by earlier releases without a snapshot retain the best-effort legacy lookup.
 
 **Backups and limitations:** Before first updating to v0.4.0, back up the Foundry world. Automated simulation tests exercise recipe validation, migration, import/export, dry runs and pending-brew snapshots. The drag-and-drop UI and true multiplayer flows still need testing inside Foundry v14.
+
+## GM Setup → Rules (v0.5.0)
+
+Global brewing mechanics are now **world settings**, editable by the GM from **Alchemy → GM Setup → Rules**. Existing worlds retain all the original values until the GM changes them. A **Restore default rules** button resets every global rule after confirmation; it does **not** reset or overwrite custom recipes.
+
+- **Difficulty by tier:** Common DC 10, Rare DC 12, Exotic DC 14 by default. Each can be set from 1–40. Recipe-specific DC overrides take precedence.
+- **Brewing time by tier:** Common 2 hours, Rare 4 hours, Exotic 6 hours by default. Set each in quarter-hour increments (0.25–72 hours). The same time applies to a single potion and a batch. Recipe-specific time overrides take precedence.
+- **Maximum batch:** Configurable 1–100 (default 100). Player craftability, preview tests and GM-authoritative transactions honour the cap; all batches roll just one initial check.
+- **Critical threshold:** Natural 20 by default, configurable 2–20. Critical checks run 0–2 additional **independent** native d20 Alchemist’s Supplies checks (default 2). Successful follow-ups grant configurable bonus dice (default 1 die if one passes, 2 dice if two pass); selectable dice are d4, d6, d8, d10, d12, d20 or virtual d40. Each die point earns a configurable percentage (default 10%). E.g. an original 5-potion batch with +150% earns 7 guaranteed extra potions and 50% chance of one more.
+- **Failure resolution:** Following a failed initial check, roll 0–2 independent native d20 follow-ups (default 2). With **zero passes**, the default output is 0% (all reagents lost), but a GM can specify 0–100% fixed batch yield. With **one pass**, the player rolls a configurable partial-yield die (default d8) times a percentage per point (default 10%). Whole yields are guaranteed; any remainder uses one d100. With **two passes**, choose whether the player selects **full yield after additional time** or **immediate partial yield**, or enforce one choice for the whole world. Extra time defaults to 50% of normal time (0–300% configurable). Immediate resolution uses the same partial-yield formula.
+- All additional brewing dice appear in Foundry chat and Dice So Nice. A virtual d40 is still represented by d10+d4, as in previous releases. Values are validated before being saved; only the GM can change them.
+
+**Fixed mechanical safeguards**, displayed read-only in the Rules tab: Intelligence + Alchemist’s Supplies (requires carried tools and proficiency); 1 herb → 1 chosen reagent without a check; one-way 3:1 Rare→Common, Exotic→Rare (or 9:1 Exotic→Common) with change preserved; no automatic advancement of time. These are not editable without explicitly revising the core economy, tool-check implementation or inventory transactions.
+
+**Live changes** affect subsequent brewing attempts only. Brews already awaiting GM completion retain their output Item, recipe and recorded time; rule snapshots are stored for new pending jobs. A backup of the Foundry world is recommended before upgrading. These changes are verified with Node regression tests; manual UI verification in a running Foundry v14 instance is still needed.
 
 ## Rules
 
@@ -141,3 +156,10 @@ No recipe formulas, inventory records, GM mappings, active brews or proficiency 
 - Compendium reagent drag-and-drop in the GM recipe editor, even when the mapped equivalent is a World Item.
 - Preserve explicit GM reagent mapping overrides and provide validation previews before applying scans.
 - Added regression tests for mixed sources, imported Item identity, broken links, duplicate herbs, and unavailable packs.
+
+## v0.5.0 — global GM rules
+
+- Added GM Rules tab with validated editing, save, and restore defaults.
+- Wired DC/time, maximum batch, natural critical thresholds, critical dice and bonuses, failure outcomes, partial yields and delayed brewing time into the server-authoritative brewing path.
+- Preserved recipe-specific difficulty/time overrides, Dice So Nice, source mapping and existing pending jobs.
+- Added model, UI and GM transaction regression tests for changed values.

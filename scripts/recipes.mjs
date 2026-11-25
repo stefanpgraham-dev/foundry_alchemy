@@ -7,8 +7,8 @@ const uuidOK=uuid=>typeof uuid==='string'&&(!uuid||/^(Item|Compendium)\.[a-zA-Z0
 const numberOrNull=value=>value===null||value===undefined||value===''?null:Number(value);
 const safeClone=value=>JSON.parse(JSON.stringify(value));
 
-export function recipeDC(recipe){return recipe.dcOverride??DC[recipeTier(recipe)];}
-export function recipeHours(recipe){return recipe.hoursOverride??HOURS[recipeTier(recipe)];}
+export function recipeDC(recipe,rules=null){return recipe.dcOverride??rules?.dc?.[recipeTier(recipe)]??DC[recipeTier(recipe)];}
+export function recipeHours(recipe,rules=null){return recipe.hoursOverride??rules?.hours?.[recipeTier(recipe)]??HOURS[recipeTier(recipe)];}
 export function validateRecipe(raw,{allowMissingOutput=false}={}){
   if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Recipe must be an object.');
   if(!validId(raw.id))throw Error('Recipe ID must use letters, numbers, dashes or underscores.');
@@ -99,12 +99,13 @@ export function recipeWarnings(recipes,outputMappings={}){
   }
   return warnings;
 }
-export function recipeTest(recipe,batch,inventory){
+export function recipeTest(recipe,batch,inventory,rules=null){
   const size=Number(batch);
-  if(!Number.isSafeInteger(size)||size<1||size>100)throw Error('Test batch size must be 1–100.');
+  const cap=rules?.maxBatch??100;
+  if(!Number.isSafeInteger(size)||size<1||size>cap)throw Error('Test batch size must be 1–'+cap+'.');
   const required=Object.fromEntries(Object.entries(recipe.cost).map(([k,q])=>[k,q*size]));
-  const base={batch:size,requirements:required,tier:recipeTier(recipe),dc:recipeDC(recipe),hours:recipeHours(recipe),
-    maximumCraftable:maximumCraftableBatch(recipe,inventory,100)};
+  const base={batch:size,requirements:required,tier:recipeTier(recipe),dc:recipeDC(recipe,rules),hours:recipeHours(recipe,rules),
+    maximumCraftable:maximumCraftableBatch(recipe,inventory,cap)};
   try{return {...base,craftable:true,plan:planRecipe(recipe,size,inventory)};}
   catch(error){return {...base,craftable:false,reason:error.message,plan:null};}
 }
