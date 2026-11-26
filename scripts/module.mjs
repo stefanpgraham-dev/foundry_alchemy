@@ -208,7 +208,7 @@ async function refreshDirectories(config){
  if(!game.user.isGM)throw new Error('GM access required.');
  const selection=normalizeDirectoryConfig(config||game.settings.get(MID,'directoryConfig'));
  const scan=await previewDirectories(selection);
- const oldMap=structuredClone(setting()||blankMappings()),oldHerbs=herbs;
+ const oldMap=structuredClone(setting()||blankMappings()),oldHerbs=herbs,oldRecipes=structuredClone(recipes);
  const oldConfig=game.settings.get(MID,'directoryConfig'),oldReport=game.settings.get(MID,'directoryReport');
  const oldPotionCatalog=game.settings.get(MID,'potionCatalog'),oldLibrary=structuredClone(game.settings.get(MID,'recipeLibrary'));
  const hasPotionSource=Boolean(selection.potionFolderId||selection.potionPackIds.length);
@@ -226,6 +226,16 @@ async function refreshDirectories(config){
   await game.settings.set(MID,'directoryConfig',selection);
   await game.settings.set(MID,'directoryReport',scan.report);
   herbs=scan.herbs;
+  if(hasPotionSource){
+   recipes.splice(0,recipes.length,...nextRecipes);
+   // The recipe editor retains a draft across re-renders. Update it after an
+   // automatic source scan unless the GM is actively editing unsaved changes.
+   for(const app of openWorkbenches){
+    if(app.recipeDirty||!app.recipeDraft)continue;
+    const next=recipes.find(r=>r.id===app.recipeDraft.id);
+    if(next)app.recipeDraft=structuredClone(next);
+   }
+  }
  }catch(error){
   console.error(MID+': folder refresh failed; restoring previous settings',error);
   try{
@@ -233,6 +243,7 @@ async function refreshDirectories(config){
    await game.settings.set(MID,'herbCatalog',oldHerbs);
    await game.settings.set(MID,'potionCatalog',oldPotionCatalog);
    if(hasPotionSource)await game.settings.set(MID,'recipeLibrary',oldLibrary);
+   recipes.splice(0,recipes.length,...oldRecipes);
    await game.settings.set(MID,'directoryConfig',oldConfig);
    await game.settings.set(MID,'directoryReport',oldReport);
   }catch(rollbackError){console.error(MID+': rollback failed',rollbackError);}
@@ -479,7 +490,7 @@ Hooks.once('init',()=>{
  game.settings.register(MID,'herbCatalog',{name:'Discovered herb catalogue',scope:'world',config:false,type:Array,default:[]});
   game.settings.register(MID,'potionCatalog',{name:'Selected potion source catalogue',scope:'world',config:false,type:Array,default:[]});
  game.settings.register(MID,'recipeLibrary',{name:'World recipe library',scope:'world',config:false,type:Object,default:{initialized:false,recipes:[]}});
- game.settings.register(MID,'directoryReport',{name:'Alchemy directory validation',scope:'world',config:false,type:Object,default:{issues:[],added:[],changed:[],removed:[],herbItems:0,reagentItems:0,potionItems:0,validHerbs:0,mappedReagents:0,mappedPotions:0}});
+ game.settings.register(MID,'directoryReport',{name:'Alchemy directory validation',scope:'world',config:false,type:Object,default:{issues:[],added:[],changed:[],removed:[],herbItems:0,reagentItems:0,potionItems:0,potionSourceItems:0,validHerbs:0,mappedReagents:0,mappedPotions:0,missingPotions:0,ambiguousPotions:0,recipeResults:[]}});
  game.settings.register(MID,'pending',{name:'Pending alchemy brews',scope:'world',config:false,type:Array,default:[]});
  const api={open:hub,setup:()=>hub({tab:'gm'}),legacySetup:setupHub,getRecipes:()=>structuredClone(recipes),getDefaultRecipes:()=>structuredClone(defaultRecipes),saveRecipes,getRules:worldRules,saveRules,recipeTest:()=>hub({tab:'gm'}),getHerbs:()=>structuredClone(herbs),previewDirectories,refreshDirectories};
  game.modules.get(MID).api=api;
