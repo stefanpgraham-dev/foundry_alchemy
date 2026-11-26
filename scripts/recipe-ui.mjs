@@ -16,6 +16,11 @@ function initialise(app){
  }
 }
 function outputImage(app,r){return r.outputUuid?app._templateImage(r.outputUuid):'icons/consumables/potions/potion-bottle-corked-red.webp';}
+function outputStatus(app,r){
+ const uuid=r.outputUuid||app.services.mappings().outputs?.[r.id]||'';
+ if(!uuid)return 'Unlinked';
+ return app.services.mappings().autoOutputs?.[r.id]===uuid?'Linked automatically':'Linked explicitly';
+}
 function recipeList(app){
  const issues=new Set(recipeWarnings(app.services.recipes).map(x=>x.id));
  const list=app.services.recipes.filter(r=>{
@@ -66,7 +71,7 @@ function editor(app){
   '<label class="awb-field"><span>Recipe name</span><input data-recipe-name maxlength="120" value="'+esc(r.name)+'"></label>'+
   '<h3>Potion output</h3><div class="awb-recipe-drop awb-recipe-output" data-recipe-drop="output">'+
   '<img class="awb-art awb-featured" src="'+esc(outputImage(app,r))+'" alt=""><div><strong>'+
-  (r.outputUuid?esc(r.outputName||'Linked potion Item')+' — drop to change':'Drop potion Item here')+'</strong><small>'+esc(r.outputUuid||'Preserve Foundry activities and effects')+'</small></div></div>'+potionPicker+
+  (r.outputUuid?esc(r.outputName||'Linked potion Item')+' — drop to change':'Drop potion Item here')+'</strong><small>'+esc(r.outputUuid||'Preserve Foundry activities and effects')+'</small></div></div><p class="awb-muted">'+esc(outputStatus(app,r))+'</p>'+potionPicker+
   toolChoices+'<h3>Required reagents per potion</h3><div class="awb-recipe-ingredient-list">'+ingredientRows+'</div>'+
   '<div class="awb-recipe-drop" data-recipe-drop="reagent"><i class="fas fa-flask"></i> Drop reagent Item here</div>'+palette+
   '<div class="awb-recipe-overrides"><label><input data-recipe-enabled type="checkbox" '+(r.enabled?'checked':'')+'> Available to players</label>'+
@@ -97,12 +102,12 @@ export function recipeEditorView(app){
   '<div class="awb-recipe-drop awb-recipe-create" data-recipe-drop="new"><i class="fas fa-plus-circle"></i> Drop potion Item to add a recipe</div>'+
   '<div class="awb-recipe-library-list">'+list.map(r=>btn('gm-recipe-select',
   '<img class="awb-art" src="'+esc(outputImage(app,r))+'" alt=""><span><strong>'+esc(r.name)+'</strong><small>'+
-  label(recipeTier(r))+' · DC '+recipeDC(r,app.services.rules?.())+' · '+esc(brewingToolsForRecipe(r).map(brewToolLabel).join(' / '))+' · '+(r.enabled?'Enabled':'Disabled')+'</small></span>',
+  label(recipeTier(r))+' · DC '+recipeDC(r,app.services.rules?.())+' · '+esc(brewingToolsForRecipe(r).map(brewToolLabel).join(' / '))+' · '+(r.enabled?'Enabled':'Disabled')+' · '+esc(outputStatus(app,r))+'</small></span>',
   'data-id="'+esc(r.id)+'" class="awb-recipe-library-card '+(app.recipeId===r.id?'selected':'')+'"')).join('')+'</div>'+
   '<div class="awb-recipe-library-tools">'+btn('gm-recipe-import-missing','Import Missing Defaults')+
   btn('gm-recipe-export','Export JSON')+
   '<label class="awb-recipe-import">Import JSON <input type="file" data-recipe-import accept=".json,application/json"></label>'+
-  '<small>'+issueCount+' output warnings</small></div></section>'+
+  '<small>'+app.services.recipes.filter(r=>!r.outputUuid).length+' recipes unlinked · '+issueCount+' output warnings</small></div></section>'+
   '<section class="awb-panel awb-recipe-editor-panel">'+editor(app)+'</section></div>';
 }
 
