@@ -345,7 +345,7 @@ export function scanDirectories(world,config,previous={},sources={}){
    herbFolderId:selected.herbFolderId,reagentFolderId:selected.reagentFolderId,potionFolderId:selected.potionFolderId,
    herbPackIds:selected.herbPackIds,reagentPackIds:selected.reagentPackIds,potionPackIds:selected.potionPackIds,
    herbItems:plants.length,reagentItems:materials.length,potionItems:matchedPotions.catalog.length,
-   mappedPotions:potionSourceSelected?matchedPotions.mappedPotions:0,validHerbs:herbs.length,
+   mappedPotions:matchedPotions.mappedPotions,validHerbs:herbs.length,
    mappedReagents:Object.keys(reagentMappings).length,added,changed,removed,issues,
    scannedAt:new Date().toISOString()
   }
