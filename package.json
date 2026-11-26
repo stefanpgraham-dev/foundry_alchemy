@@ -1,10 +1,10 @@
 {
   "name": "alchemy-workbench",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/smoke.mjs && node tests/directories.mjs && node tests/recipes.mjs && node tests/theme-layout.mjs && node tests/compendiums.mjs && node tests/rules.mjs && node tests/herb-provenance.mjs && node tests/brewing-tools.mjs"
+    "test": "node tests/smoke.mjs && node tests/directories.mjs && node tests/recipes.mjs && node tests/theme-layout.mjs && node tests/compendiums.mjs && node tests/rules.mjs && node tests/herb-provenance.mjs && node tests/brewing-tools.mjs && node tests/potion-sources.mjs"
   },
   "description": "Foundry VTT v14/D&D5e Alchemy Workbench"
 }
