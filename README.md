@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.5.4 — corrected potion name and duplicate mappings.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.5.5 — restore recipe and ingredient artwork for linked compendium Items.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -20,6 +20,12 @@ Or extract the `alchemy-workbench` folder from the release ZIP to `Data/modules/
 - Inventory shows all nine reagent balances and recognised herbs. It also lists likely unmatched herbs/reagents with suggestions for the GM to review mappings.
 - A GM must be connected when players craft. The active GM validates and executes inventory transactions and rolls. Dice So Nice is optional and integrates via normal Foundry Roll chat messages.
 - When both follow-up checks succeed after an initial failure, the player is prompted **after those dice have rolled** to choose full batch at +50% brewing time or partial batch immediately.
+
+## v0.5.5 — compendium artwork in Recipes and Brew Potions
+
+Compendium Item UUIDs are resolved to the proper pack identifier, excluding the `.Item` document-type segment. The Recipes list, selected potion output and Brew Potions cards now use images saved in the scanned **Potion Sources** catalogue first; this works even if Foundry's compendium index is not populated with `img`. Reagent image paths are saved on refresh for ingredient previews. World Item artwork continues to be read directly from its Item. An unavailable template image shows Foundry's standard Item icon rather than a broken image.
+
+**Update procedure:** Install v0.5.5, reload Foundry, then select **GM Setup → Directories → Refresh from sources → Apply scan** to save reagent artwork. Previously selected potion images are already present in the Potion Sources catalogue. Recipe outputs, activities, effects and inventory transactions are unchanged.
 
 ## v0.5.4 — source matching and all 44 formulas
 
