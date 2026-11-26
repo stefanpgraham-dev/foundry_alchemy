@@ -54,7 +54,7 @@ const nameCollision=matchPotionRecipes([healing],[
  worldPotion,item('other','Potion of Healing','potions')
 ]);
 assert.equal(nameCollision.mappedPotions,0,'unrelated same-name potions must not be guessed');
-assert(nameCollision.issues.some(i=>/Several selected/.test(i.problem)));
+assert(nameCollision.issues.some(i=>/Multiple different/.test(i.problem)));
 const original={
  id:'packHeal',name:'Potion of Healing',uuid:'Compendium.campaign.potions.Item.packHeal',
  documentName:'Item',type:'consumable'
