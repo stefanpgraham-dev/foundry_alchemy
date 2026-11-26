@@ -11,7 +11,7 @@ const DIALOG=()=>foundry.applications.api.DialogV2;
 const esc=v=>foundry.utils.escapeHTML(String(v??''));
 const slug=s=>String(s).replace(/_/g,' ');
 const actors=()=>game.actors.contents.filter(a=>a.testUserPermission(game.user,'OWNER'));
-const blankMappings=()=>({reagents:{},herbs:{},reagentAliases:{},herbAliases:{},reagentOverrides:{},outputs:{}});
+const blankMappings=()=>({reagents:{},herbs:{},reagentAliases:{},herbAliases:{},reagentOverrides:{},outputs:{},autoOutputs:{}});
 const worldRules=()=>validateRules(game.settings.get(MID,'rules')||defaultRules());
 const openWorkbenches=new Set();
 let recipes=[],herbs=[],defaultRecipes=[];
@@ -44,7 +44,7 @@ async function selectActor(){
 }
 function workbench(actor){
  const app=new AlchemyWorkbench(actor,{
-  get recipes(){return recipes;},get defaultRecipes(){return defaultRecipes;},get herbs(){return herbs;},mappings:setting,submit:submitAction,saveMappings,saveRecipes,
+  get recipes(){return recipes;},get defaultRecipes(){return defaultRecipes;},get herbs(){return herbs;},get potions(){return game.settings.get(MID,'potionCatalog')||[];},mappings:setting,submit:submitAction,saveMappings,saveRecipes,
   directories:()=>game.settings.get(MID,'directoryConfig'),
   directoryReport:()=>game.settings.get(MID,'directoryReport'),
   rules:worldRules,saveRules,previewDirectories,refreshDirectories,pending:pendingDialog,brewingEligibility
@@ -142,7 +142,13 @@ async function saveRecipes(entries){
  const oldLibrary=structuredClone(game.settings.get(MID,'recipeLibrary'));
  const oldMappings=structuredClone(setting()||blankMappings());
  const outputMap=Object.fromEntries(validated.filter(r=>r.outputUuid).map(r=>[r.id,r.outputUuid]));
- const updatedMappings={...oldMappings,outputs:outputMap};
+ // An edited output or renamed recipe becomes an explicit link, not a
+ // directory-managed auto-match. Unchanged automatic links remain refreshable.
+ const autoOutputs=Object.fromEntries(Object.entries(oldMappings.autoOutputs||{}).filter(([id,uuid])=>{
+  const next=validated.find(r=>r.id===id),old=recipes.find(r=>r.id===id);
+  return next&&old&&next.outputUuid===uuid&&next.name===old.name;
+ }));
+ const updatedMappings={...oldMappings,outputs:outputMap,autoOutputs};
  try{
   await game.settings.set(MID,'mappings',updatedMappings);
   await game.settings.set(MID,'recipeLibrary',{initialized:true,recipes:validated});
@@ -194,7 +200,7 @@ async function saveMappings(kind,values){
 }
 async function previewDirectories(config){
  if(!game.user.isGM)throw new Error('GM access required.');
- return scanConfiguredSources({folders:game.folders,items:game.items},config,{herbs,mappings:setting()},{
+ return scanConfiguredSources({folders:game.folders,items:game.items},config,{herbs,recipes,mappings:setting()},{
   packs:game.packs,resolveUuid:uuid=>fromUuid(uuid)
  });
 }
@@ -204,13 +210,19 @@ async function refreshDirectories(config){
  const scan=await previewDirectories(selection);
  const oldMap=structuredClone(setting()||blankMappings()),oldHerbs=herbs;
  const oldConfig=game.settings.get(MID,'directoryConfig'),oldReport=game.settings.get(MID,'directoryReport');
+ const oldPotionCatalog=game.settings.get(MID,'potionCatalog'),oldLibrary=structuredClone(game.settings.get(MID,'recipeLibrary'));
+ const hasPotionSource=Boolean(selection.potionFolderId||selection.potionPackIds.length);
+ const nextRecipes=hasPotionSource?validateLibrary(scan.updatedRecipes,{allowMissingOutput:true}):recipes;
  const nextMap={...oldMap,
   reagents:scan.reagentMappings,reagentNames:scan.reagentNames,reagentAliases:scan.reagentAliases,
-  herbs:scan.herbMappings,herbNames:scan.herbNames,herbAliases:scan.herbAliases
+  herbs:scan.herbMappings,herbNames:scan.herbNames,herbAliases:scan.herbAliases,
+  ...(hasPotionSource?{outputs:scan.potionMappings,autoOutputs:scan.autoPotionMappings}:{})
  };
  try{
   await game.settings.set(MID,'mappings',nextMap);
   await game.settings.set(MID,'herbCatalog',scan.herbs);
+  await game.settings.set(MID,'potionCatalog',scan.potionCatalog);
+  if(hasPotionSource)await game.settings.set(MID,'recipeLibrary',{initialized:true,recipes:nextRecipes});
   await game.settings.set(MID,'directoryConfig',selection);
   await game.settings.set(MID,'directoryReport',scan.report);
   herbs=scan.herbs;
@@ -219,6 +231,8 @@ async function refreshDirectories(config){
   try{
    await game.settings.set(MID,'mappings',oldMap);
    await game.settings.set(MID,'herbCatalog',oldHerbs);
+   await game.settings.set(MID,'potionCatalog',oldPotionCatalog);
+   if(hasPotionSource)await game.settings.set(MID,'recipeLibrary',oldLibrary);
    await game.settings.set(MID,'directoryConfig',oldConfig);
    await game.settings.set(MID,'directoryReport',oldReport);
   }catch(rollbackError){console.error(MID+': rollback failed',rollbackError);}
@@ -229,7 +243,7 @@ async function refreshDirectories(config){
   try{marked+=await markActorInventory(actor,nextMap,herbs);}
   catch(error){console.warn(MID+': cannot classify '+actor.name,error);}
  }
- ui.notifications.info('Alchemy: '+scan.report.validHerbs+' herbs and '+scan.report.mappedReagents+'/9 reagents discovered; '+scan.report.issues.length+' notices. '+marked+' actor Items classified.');
+ ui.notifications.info('Alchemy: '+scan.report.validHerbs+' herbs, '+scan.report.mappedReagents+'/9 reagents and '+scan.report.mappedPotions+' potion outputs mapped; '+scan.report.issues.length+' notices. '+marked+' actor Items classified.');
  return scan.report;
 }
 async function pendingDialog(){
@@ -463,8 +477,9 @@ Hooks.once('init',()=>{
   game.settings.register(MID,'mappings',{name:'Alchemy item mappings',scope:'world',config:false,type:Object,default:blankMappings()});
  game.settings.register(MID,'directoryConfig',{name:'Alchemy item folders',scope:'world',config:false,type:Object,default:defaultDirectoryConfig()});
  game.settings.register(MID,'herbCatalog',{name:'Discovered herb catalogue',scope:'world',config:false,type:Array,default:[]});
+  game.settings.register(MID,'potionCatalog',{name:'Selected potion source catalogue',scope:'world',config:false,type:Array,default:[]});
  game.settings.register(MID,'recipeLibrary',{name:'World recipe library',scope:'world',config:false,type:Object,default:{initialized:false,recipes:[]}});
- game.settings.register(MID,'directoryReport',{name:'Alchemy directory validation',scope:'world',config:false,type:Object,default:{issues:[],added:[],changed:[],removed:[],herbItems:0,reagentItems:0,validHerbs:0,mappedReagents:0}});
+ game.settings.register(MID,'directoryReport',{name:'Alchemy directory validation',scope:'world',config:false,type:Object,default:{issues:[],added:[],changed:[],removed:[],herbItems:0,reagentItems:0,potionItems:0,validHerbs:0,mappedReagents:0,mappedPotions:0}});
  game.settings.register(MID,'pending',{name:'Pending alchemy brews',scope:'world',config:false,type:Array,default:[]});
  const api={open:hub,setup:()=>hub({tab:'gm'}),legacySetup:setupHub,getRecipes:()=>structuredClone(recipes),getDefaultRecipes:()=>structuredClone(defaultRecipes),saveRecipes,getRules:worldRules,saveRules,recipeTest:()=>hub({tab:'gm'}),getHerbs:()=>structuredClone(herbs),previewDirectories,refreshDirectories};
  game.modules.get(MID).api=api;
