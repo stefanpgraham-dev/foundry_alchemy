@@ -11,8 +11,8 @@ const pkg=JSON.parse(readFileSync(path.join(root,'package.json'),'utf8'));
 const workbench=readFileSync(path.join(root,'scripts/workbench.mjs'),'utf8');
 const recipeUi=readFileSync(path.join(root,'scripts/recipe-ui.mjs'),'utf8');
 
-assert.equal(manifest.version,'0.5.3');
-assert.equal(pkg.version,'0.5.3');
+assert.equal(manifest.version,'0.5.4');
+assert.equal(pkg.version,'0.5.4');
 assert.deepEqual(manifest.styles,['styles/alchemy.css','styles/theme-and-cards.css']);
 assert.match(css,/body\.theme-light \.alchemy-workbench\.awb-app/);
 assert.match(css,/\.alchemy-workbench\.awb-app\.theme-light/);
