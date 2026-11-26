@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.5.3 — linked potion sources and recipe output matching.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.5.4 — corrected potion name and duplicate mappings.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -20,6 +20,14 @@ Or extract the `alchemy-workbench` folder from the release ZIP to `Data/modules/
 - Inventory shows all nine reagent balances and recognised herbs. It also lists likely unmatched herbs/reagents with suggestions for the GM to review mappings.
 - A GM must be connected when players craft. The active GM validates and executes inventory transactions and rolls. Dice So Nice is optional and integrates via normal Foundry Roll chat messages.
 - When both follow-up checks succeed after an initial failure, the player is prompted **after those dice have rolled** to choose full batch at +50% brewing time or partial batch immediately.
+
+## v0.5.4 — source matching and all 44 formulas
+
+**Potion Sources now understand Foundry 2024 equipment naming:** `Potion of Healing (Greater/Superior/Supreme)`, `Philter of Love`, `Poison, Basic`, `Crawler Mucus` and `Assassin's Blood` resolve to the corresponding legacy-named world recipes. For the duplicate `Potion of Healing` templates in `dnd5e.equipment24`, the actual DMG potion is preferred over the PHB adventuring-gear copy. Distinct same-name World Items remain ambiguous; previous explicit mappings are never replaced.
+
+**The 2024 equipment pack does not contain a separate Item for every default formula.** Its `Potion of Resistance` contains selectable damage types and is **not automatically substituted** for ten recipes that specify separate resistance types. The older `dnd5e.items` compendium contains specific resistance Items (and Drow Poison). Select **both** `dnd5e.equipment24` and `dnd5e.items` under **GM Setup → Directories → Potion Sources**, or use the **Add SRD 5.1 Items as potion source** shortcut when offered. Refresh, preview the linked/unlinked counts, and apply. Current-world explicit links are preserved, and modern 2024 Items are preferred for same-named compendium alternatives.
+
+The recipe library lists whether each output is linked automatically, linked explicitly or unlinked. Selecting a potion source and refreshing updates the selected recipe's output display unless the GM has unsaved changes. Missing or ambiguous outputs remain visible as warnings rather than silently crafting the wrong potion. Regression tests cover the published naming differences and distinct resistance outputs.
 
 ## v0.5.3 — potion source mapping
 
