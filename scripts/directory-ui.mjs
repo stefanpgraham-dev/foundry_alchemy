@@ -67,6 +67,15 @@ export function directoryView(app){
   button('gm-pick-reagent-packs','Choose reagent compendiums')+'</div>'+
   '</div>';
  const recursive='<label class="awb-directory-recursive"><input type="checkbox" data-directory-recursive '+(current.includeSubfolders?'checked':'')+'> Include subfolders recursively</label>';
+ const rarityNames={common:'Common',uncommon:'Uncommon',rare:'Rare',veryrare:'Very Rare',legendary:'Legendary',artifact:'Artifact'};
+ const choices=[['common','Common'],['rare','Rare'],['exotic','Exotic'],['unknown','Not categorised']];
+ const rarityOptions=Object.entries(rarityNames).map(([type,name])=>
+  '<label class="awb-rarity-rule"><span>'+esc(name)+'</span><select data-rarity-map="'+esc(type)+'">'+
+   choices.map(([value,title])=>'<option value="'+value+'" '+(current.rarityMap[type]===value?'selected':'')+'>'+title+'</option>').join('')+
+   '</select></label>').join('');
+ const raritySetup='<details class="awb-rarity-setup"><summary>D&D item rarity → Alchemy tier</summary>'+
+  '<p class="awb-muted">Controls how herbs are categorised from system.rarity or system.rarities. Does not change their linked reagent outputs or potion brewing DCs.</p>'+
+  '<div class="awb-rarity-grid">'+rarityOptions+'</div></details>';
  const nav='<div class="awb-subtabs">'+[
   ['directories','Directories'],['herbs','Herbs ('+app.services.herbs.length+')'],
   ['reagents','Reagents ('+Object.keys(map.reagents||{}).length+'/9)'],
@@ -77,7 +86,7 @@ export function directoryView(app){
   else if(kind==='rules')body=rulesView(app);
  else if(kind==='directories'){
   body='<p class="awb-muted">Choose World Item folders, Item compendium packs, or both. Each herb description must link to its permitted reagent Items; refresh previews changes before updating this world.</p>'+
-   foldersBar+recursive+
+   foldersBar+recursive+raritySetup+
    '<div class="awb-folder-summary">'+
    '<span><strong>'+Number(r.validHerbs||0)+'</strong> herbs imported</span>'+
    '<span><strong>'+Number(r.mappedReagents||0)+'/9</strong> reagents mapped</span>'+
@@ -94,12 +103,12 @@ export function directoryView(app){
     body+='<div class="awb-mapping-list">'+herbs.map(herb=>{
      const linked=herb.reagents.map(label).join(' / ');
      return '<div class="awb-mapping-card awb-herb-definition" data-mapping-row="'+esc(herb.id)+'">'+
-      '<div class="awb-mapping-name"><strong>'+esc(herb.name)+'</strong><small>'+esc(linked)+'</small><small>'+esc(label(herb.rarity))+' herb · '+esc(herb.sourceUuid)+'</small></div>'+
+      '<div class="awb-mapping-name"><strong>'+esc(herb.name)+'</strong><small>'+esc(linked)+'</small><small>Alchemy: '+esc(label(herb.rarity))+(herb.sourceRarity?' · D&D: '+esc(herb.sourceRarity):'')+' · '+esc(herb.sourceUuid)+'</small></div>'+
       '<button type="button" data-action="gm-open-item" data-uuid="'+esc(herb.sourceUuid)+'">Open Item</button></div>';
     }).join('')+'</div>';
    }
    if(app.gmFilter==='issues'||issues.some(i=>i.type==='herb'))body+='<h3>Herbs requiring review</h3>'+noteList(issues.filter(i=>i.type==='herb'));
-   body+='<p class="awb-muted">Herb entries are generated from the selected folder. Edit the Item or its linked reagents, then refresh.</p>';
+   body+='<p class="awb-muted">Herb entries are generated from selected World Items and compendiums. Different herbs keep their own Item UUIDs even if their Original Source matches. Edit an Item and refresh.</p>';
   }else{
    const data=kind==='reagents'?KEYS.map(id=>({id,name:label(id)})):app.services.recipes;
    const existing=[...game.items.contents].sort((a,b)=>a.name.localeCompare(b.name));

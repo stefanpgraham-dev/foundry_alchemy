@@ -6,11 +6,41 @@ import {KEYS} from './engine.mjs';
 const CATEGORIES=new Set(KEYS);
 const normalize=value=>String(value??'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
 const list=value=>[...new Set(Array.isArray(value)?value.filter(x=>typeof x==='string'&&x.trim()):[])];
-export const defaultDirectoryConfig=()=>({herbFolderId:'',reagentFolderId:'',herbPackIds:[],reagentPackIds:[],includeSubfolders:true});
+// Maps familiar D&D 5e item rarities to alchemical ingredient tiers.
+export const defaultRarityMap=()=>({
+ common:'common',uncommon:'common',rare:'rare',
+ veryrare:'exotic',legendary:'exotic',artifact:'exotic'
+});
+export const defaultDirectoryConfig=()=>({
+ herbFolderId:'',reagentFolderId:'',herbPackIds:[],reagentPackIds:[],
+ includeSubfolders:true,rarityMap:defaultRarityMap()
+});
 export const normalizeDirectoryConfig=config=>({
  ...defaultDirectoryConfig(),...(config||{}),
- herbPackIds:list(config?.herbPackIds),reagentPackIds:list(config?.reagentPackIds)
+ herbPackIds:list(config?.herbPackIds),reagentPackIds:list(config?.reagentPackIds),
+ rarityMap:Object.fromEntries(Object.entries({
+  ...defaultRarityMap(),...(config?.rarityMap||{})
+ }).map(([key,value])=>[key,['common','rare','exotic','unknown'].includes(value)?value:defaultRarityMap()[key]||'unknown']))
 });
+/** Resolve dnd5e's system.rarity and system.rarities without inventing a reagent type. */
+export function herbRarity(item,config={}){
+ const sys=item?.system||{},tiers=new Set(['common','rare','exotic']);
+ const explicit=[sys.alchemyTier,sys.alchemy?.tier].find(v=>typeof v==='string'&&tiers.has(normalize(v).replace(/ /g,'')));
+ if(explicit)return {rarity:normalize(explicit).replace(/ /g,''),sourceRarity:''};
+ const input=[sys.rarities,sys.rarity,sys.type?.rarity].find(v=>
+  typeof v==='string'&&v.trim()||Array.isArray(v)&&v.length||
+  v&&typeof v==='object'&&typeof v.value==='string');
+ const values=Array.isArray(input)?input:[input?.value||input];
+ const tokens=values.filter(v=>typeof v==='string'&&v.trim()).map(v=>normalize(v).replace(/ /g,''));
+ if(!tokens.length)return {rarity:'unknown',sourceRarity:''};
+ const map=normalizeDirectoryConfig(config).rarityMap;
+ const mapped=tokens.map(v=>tiers.has(v)?v:map[v]||'unknown');
+ const rank={unknown:0,common:1,rare:2,exotic:3};
+ const rarity=mapped.sort((a,b)=>rank[b]-rank[a])[0];
+ const pretty=v=>({veryrare:'Very Rare',uncommon:'Uncommon',common:'Common',rare:'Rare',legendary:'Legendary',artifact:'Artifact',exotic:'Exotic'}[v]||
+  v.replace(/(^|\s)\w/g,x=>x.toUpperCase()));
+ return {rarity,sourceRarity:tokens.map(pretty).join(', ')};
+}
 export function reagentKeyFromName(name){
  const text=normalize(name).replace(/^(?:alchemical )?reagent /,'').replace(/ reagent$/,'');
  const match=/^(common|rare|exotic) (curative|poisonous|reactive)$/.exec(text);
@@ -87,7 +117,7 @@ export function sourceAliases(item){
 const issue=(type,item,problem,severity='error')=>({
  type,itemUuid:item?.uuid||'',name:item?.name||type,problem,severity
 });
-const equalHerb=(a,b)=>a.name===b.name&&a.rarity===b.rarity&&a.sourceUuid===b.sourceUuid
+const equalHerb=(a,b)=>a.name===b.name&&a.rarity===b.rarity&&a.sourceRarity===b.sourceRarity&&a.sourceUuid===b.sourceUuid
  &&JSON.stringify(a.reagents)===JSON.stringify(b.reagents);
 /** Return selectable Item compendiums. Never scan all packs implicitly. */
 export function itemPacks(packs){
@@ -162,18 +192,12 @@ export function scanDirectories(world,config,previous={},sources={}){
  };
  for(const [key,uuids] of Object.entries(reagentAliases))for(const uuid of uuids)addAlias(uuid,key);
  const herbs=[],herbMappings={},herbNames={},herbAliases={};
- // Do not show the same imported Item twice when its original compendium
- // document and its World Item copy are both selected.
- const groupKey=item=>sourceAliases(item).find(x=>x.startsWith('Compendium.'))||item.uuid;
- const dedup=new Map();
- for(const item of plants){
-  const group=groupKey(item);
-  const existing=dedup.get(group);
-  if(!existing||(!existing.uuid.startsWith('Item.')&&item.uuid.startsWith('Item.')))dedup.set(group,item);
- }
- for(const item of dedup.values()){
-  const found=new Set(),broken=[];
-  const links=descriptionLinks(item.system?.description?.value);
+ // Parse each real Item first. A duplicated "Original Source" is not an
+ // identity: World Item UUIDs distinguish newly created herbs.
+ const prepared=[];
+ const uniquePlants=new Map(plants.filter(item=>item?.uuid).map(item=>[item.uuid,item]));
+ for(const item of uniquePlants.values()){
+  const found=new Set(),broken=[],links=descriptionLinks(item.system?.description?.value);
   for(const link of links){
    const referenced=references.get(link.uuid);
    let matches=new Set(byAlias.get(link.uuid)||[]);
@@ -183,17 +207,12 @@ export function scanDirectories(world,config,previous={},sources={}){
     }
     const byName=reagentKeyFromName(referenced.name);
     if(byName&&reagentMappings[byName])matches.add(byName);
-    // Custom-named linked Items can still resolve via the saved mapping name,
-    // but only after the actual linked UUID has resolved to an Item.
     for(const [key,name] of Object.entries(reagentNames)){
      if(normalize(name)===normalize(referenced.name))matches.add(key);
     }
    }
    if(matches.size===1){found.add([...matches][0]);continue;}
-   if(matches.size>1){
-    broken.push('Ambiguous reagent reference '+(link.label||link.uuid));
-    continue;
-   }
+   if(matches.size>1){broken.push('Ambiguous reagent reference '+(link.label||link.uuid));continue;}
    if(reagentKeyFromName(link.label)||reagentKeyFromName(referenced?.name)||/\breagent\b/i.test(link.label))
     broken.push('Unmapped or broken reagent link '+(link.label||link.uuid));
   }
@@ -202,12 +221,51 @@ export function scanDirectories(world,config,previous={},sources={}){
    issues.push(issue('herb',item,links.length?'No linked reagent resolves to a configured reagent Item.':'No linked reagent Items found in Description.','error'));
    continue;
   }
-  const rarity=normalize(item.system?.rarity||item.system?.type?.rarity||'unknown')||'unknown';
-  const id=item.uuid.startsWith('Item.')?'world-'+item.id:
-   'pack-'+item.uuid.replace(/[^A-Za-z0-9_-]/g,'_');
-  const aliases=[...new Set(plants.filter(x=>groupKey(x)===groupKey(item)).flatMap(sourceAliases))];
-  const herb={id,name:item.name,rarity,reagents:KEYS.filter(key=>found.has(key)),sourceUuid:item.uuid,img:item.img||''};
-  herbs.push(herb);herbMappings[id]=item.uuid;herbNames[id]=item.name;herbAliases[id]=aliases;
+  const rarity=herbRarity(item,selected);
+  const id=item.uuid.startsWith('Item.')?'world-'+item.id:'pack-'+item.uuid.replace(/[^A-Za-z0-9_-]/g,'_');
+  const herb={id,name:item.name,rarity:rarity.rarity,sourceRarity:rarity.sourceRarity,
+   reagents:KEYS.filter(key=>found.has(key)),sourceUuid:item.uuid,img:item.img||''};
+  prepared.push({item,herb,aliases:sourceAliases(item)});
+ }
+ // Consolidate only an actual World import with its selected Compendium original
+ // when name, tiers AND outputs match. Never consolidate two World Items,
+ // and never consolidate different herbs solely for sharing provenance.
+ const matchingProfile=(a,b)=>normalize(a.name)===normalize(b.name)&&a.rarity===b.rarity
+  &&JSON.stringify(a.reagents)===JSON.stringify(b.reagents);
+ const byPrepared=new Map(prepared.map(entry=>[entry.item.uuid,entry]));
+ const suppressed=new Set(),combined=new Map();
+ for(const source of prepared.filter(p=>p.item.uuid.startsWith('Compendium.'))){
+  const matches=prepared.filter(candidate=>candidate.item.uuid.startsWith('Item.')&&
+   candidate.aliases.includes(source.item.uuid)&&matchingProfile(candidate.herb,source.herb));
+  if(matches.length!==1)continue;
+  // A World Item should only absorb one compendium original.
+  const target=matches[0];
+  if(combined.has(target.item.uuid))continue;
+  suppressed.add(source.item.uuid);
+  combined.set(target.item.uuid,source);
+ }
+ const retained=prepared.filter(entry=>!suppressed.has(entry.item.uuid));
+ const usedAliases=new Map();
+ for(const entry of retained){
+  const extra=combined.get(entry.item.uuid)?.aliases||[];
+  entry.aliases=[...new Set([...entry.aliases,...extra])];
+  for(const alias of entry.aliases){
+   if(!usedAliases.has(alias))usedAliases.set(alias,new Set());
+   usedAliases.get(alias).add(entry.item.uuid);
+  }
+ }
+ for(const entry of retained){
+  const contested=entry.aliases.filter(alias=>usedAliases.get(alias)?.size>1);
+  if(contested.length){
+   issues.push(issue('herb',entry.item,
+    'Original Source is shared with another distinct herb ('+contested.join(', ')+'). Kept this Item separately; ambiguous source aliases will not be used for inventory matching.','warning'));
+  }
+  // A conflicting provenance must not map one copied Item to two herbs.
+  const aliases=entry.aliases.filter(alias=>alias===entry.item.uuid||usedAliases.get(alias)?.size===1);
+  herbs.push(entry.herb);
+  herbMappings[entry.herb.id]=entry.item.uuid;
+  herbNames[entry.herb.id]=entry.item.name;
+  herbAliases[entry.herb.id]=aliases;
  }
  herbs.sort((a,b)=>a.name.localeCompare(b.name));
  // Same-named but unrelated Items require provenance: name-only matching

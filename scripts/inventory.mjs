@@ -42,6 +42,20 @@ export function findMatchedInventory(actor,mappings,{selectedIds=null}={}){
   }
   return found;
 }
+/**
+ * Herb identity is stricter than reagent identity: duplicated/renamed World
+ * herbs can inherit stale "Original Source" and old module classification
+ * flags. The inventory name must match this herb, even when legacy
+ * provenance points to another herb. Distinct same-name herbs still require
+ * an unambiguous source match.
+ */
+export function herbIdentity(item,herb,mappings,allowNameFallback=true){
+ const uuid=mappings.herbs?.[herb.id];
+ if(!uuid||!item)return false;
+ const expected=mappings.herbNames?.[herb.id]||herb.name;
+ if(normal(item.name)!==normal(expected))return false;
+ return identity(item,uuid,herb.id,expected,mappings.herbAliases?.[herb.id],allowNameFallback);
+}
 export function findHerbs(actor,mappings,herbs){
   const matched=[];
   const counts=new Map();
@@ -52,8 +66,8 @@ export function findHerbs(actor,mappings,herbs){
   for(const herb of herbs){
     const uuid=mappings.herbs?.[herb.id];if(!uuid)continue;
     for(const item of actor.items){
-      if(getQty(item)>0 && identity(item,uuid,herb.id,mappings.herbNames?.[herb.id],
-        mappings.herbAliases?.[herb.id],counts.get(normal(mappings.herbNames?.[herb.id]||herb.name))===1)){
+      if(getQty(item)>0 && herbIdentity(item,herb,mappings,
+        counts.get(normal(mappings.herbNames?.[herb.id]||herb.name))===1)){
         matched.push({herb,item,quantity:getQty(item)});
       }
     }
@@ -159,8 +173,7 @@ export function planExtract(actor,herbId,actorItemId,qty,herbs,mappings,reagentK
  if(!herb || !herb.reagents.includes(reagentKey))throw new Error('This herb cannot produce the selected reagent.');
  const item=actor.items.get(actorItemId);
  const sameName=herbs.filter(h=>normal(mappings.herbNames?.[h.id]||h.name)===normal(mappings.herbNames?.[herb.id]||herb.name));
-  if(!item || !identity(item,mappings.herbs?.[herb.id],herb.id,mappings.herbNames?.[herb.id],
-       mappings.herbAliases?.[herb.id],sameName.length===1))throw new Error('That herb is not mapped to this item.');
+  if(!item || !herbIdentity(item,herb,mappings,sameName.length===1))throw new Error('That herb is not mapped to this item.');
  const quantity=assertQty(qty,1000);
  if(getQty(item)<quantity)throw new Error('Not enough herbs.');
  return {consume:[{id:item.id,quantity}],outputs:[{kind:'reagent',id:reagentKey,quantity}]};

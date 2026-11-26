@@ -210,6 +210,12 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
       }
       return;
     }
+    if(el.matches?.('[data-rarity-map]')){
+      const current=this.directoryDraft||this.services.directories();
+      this.directoryDraft={...current,rarityMap:{...(current.rarityMap||{}),[el.dataset.rarityMap]:el.value}};
+      // Mapping changes are staged for Refresh from sources; never auto-apply.
+      return;
+    }
     if(el.matches?.('[data-directory-recursive]')){
       this.directoryDraft={...(this.directoryDraft||this.services.directories()),includeSubfolders:el.checked};
       void this.render();

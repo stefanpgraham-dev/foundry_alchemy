@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.5.0 — GM-configurable brewing rules and world mechanics.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.5.1 — corrected herb identity and Foundry rarity mapping.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -66,6 +66,16 @@ Existing default recipes can function without a linked potion Item using the pre
 **Pending brew safety:** When a brew requires additional time, the GM stores the complete recipe and a snapshot of the output Item. Editing/deleting the formula or changing the output mapping later will not alter that pending reward. Pending jobs created by earlier releases without a snapshot retain the best-effort legacy lookup.
 
 **Backups and limitations:** Before first updating to v0.4.0, back up the Foundry world. Automated simulation tests exercise recipe validation, migration, import/export, dry runs and pending-brew snapshots. The drag-and-drop UI and true multiplayer flows still need testing inside Foundry v14.
+
+## v0.5.1 — herb source and rarity corrections
+
+**Different herbs keep their own World Item UUIDs.** Previously the folder scanner could merge Weeping Ink Vine and Canopy Thistle if both inherited the same "Original Source" when one Item was duplicated. The scanner now resolves the actual linked reagents first and treats each distinct World Item independently. An equivalent World import and its selected compendium original are still consolidated *only when their names, alchemy tiers and reagent output sets match*.
+
+If two distinct herbs have the same inherited original UUID, the GM sees a warning in **GM Setup → Herbs / Directories**. Conflicting source aliases are not used to identify actor inventory copies. The herb's actual Item name is also checked, preventing stale flags or an inherited core.sourceId from making Weeping Ink Vine appear as Canopy Thistle. A player's existing Item is not renamed or deleted.
+
+**Foundry item rarity:** The scanner reads \`system.rarities\` (including \`veryRare\`), falling back to \`system.rarity\`; a herb's optional \`system.alchemyTier\` is authoritative. In **GM Setup → Directories → D&D item rarity → Alchemy tier**, GMs can define how Common, Uncommon, Rare, Very Rare, Legendary and Artifact map to Common/Rare/Exotic (or unclassified) for this world. Defaults: Common/Uncommon → Common; Rare → Rare; Very Rare/Legendary/Artifact → Exotic. The Herbs catalogue shows both the D&D source rarity and the interpreted alchemy tier. These classifications affect herb catalogue/filter display, **not** the linked reagent outputs or brewing difficulty.
+
+After updating, click **GM Setup → Directories → Refresh from sources** and apply the scan to reclassify your world's herbs. A herb still needs at least one valid linked reagent Item in its Description. Refreshing does not modify actor inventory quantities.
 
 ## GM Setup → Rules (v0.5.0)
 
