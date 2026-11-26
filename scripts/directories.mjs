@@ -12,12 +12,12 @@ export const defaultRarityMap=()=>({
  veryrare:'exotic',legendary:'exotic',artifact:'exotic'
 });
 export const defaultDirectoryConfig=()=>({
- herbFolderId:'',reagentFolderId:'',herbPackIds:[],reagentPackIds:[],
+ herbFolderId:'',reagentFolderId:'',potionFolderId:'',herbPackIds:[],reagentPackIds:[],potionPackIds:[],
  includeSubfolders:true,rarityMap:defaultRarityMap()
 });
 export const normalizeDirectoryConfig=config=>({
  ...defaultDirectoryConfig(),...(config||{}),
- herbPackIds:list(config?.herbPackIds),reagentPackIds:list(config?.reagentPackIds),
+ herbPackIds:list(config?.herbPackIds),reagentPackIds:list(config?.reagentPackIds),potionPackIds:list(config?.potionPackIds),
  rarityMap:Object.fromEntries(Object.entries({
   ...defaultRarityMap(),...(config?.rarityMap||{})
  }).map(([key,value])=>[key,['common','rare','exotic','unknown'].includes(value)?value:defaultRarityMap()[key]||'unknown']))
@@ -127,6 +127,49 @@ export function itemPacks(packs){
 export function packLabel(pack){
  return pack?.metadata?.label||pack?.title||pack?.collection||'Unnamed Item compendium';
 }
+/** Resolve selected potion Items against formulas without guessing ambiguous names.
+ * Explicit recipe output UUIDs always win. Previously auto-linked outputs can
+ * follow a newly selected potion source on refresh. */
+export function matchPotionRecipes(recipes=[],items=[],mappings={}){
+ const candidates=new Map(),issues=[],updatedRecipes=[],outputs={},autoOutputs={};
+ const unique=new Map(items.filter(x=>x?.uuid&&x?.name).map(x=>[x.uuid,x]));
+ const catalog=[...unique.values()].map(item=>({uuid:item.uuid,name:item.name,img:item.img||'',type:item.type||''}))
+  .sort((a,b)=>a.name.localeCompare(b.name)||a.uuid.localeCompare(b.uuid));
+ for(const item of unique.values()){
+  const key=normalize(item.name);
+  if(!candidates.has(key))candidates.set(key,[]);
+  candidates.get(key).push(item);
+ }
+ for(const recipe of recipes){
+  const oldUuid=recipe.outputUuid||mappings.outputs?.[recipe.id]||'';
+  const tracked=mappings.autoOutputs?.[recipe.id]===oldUuid&&Boolean(oldUuid);
+  if(oldUuid&&!tracked){
+   outputs[recipe.id]=oldUuid;
+   updatedRecipes.push({...recipe,outputUuid:oldUuid});
+   continue;
+  }
+  const matches=candidates.get(normalize(recipe.name))||[];
+  let match=matches.length===1?matches[0]:null;
+  // A World copy and its original compendium Item are the same potion.
+  if(matches.length>1){
+   const world=matches.filter(x=>x.uuid.startsWith('Item.'));
+   if(world.length===1&&matches.every(x=>x===world[0]||sourceAliases(world[0]).includes(x.uuid)))match=world[0];
+   else issues.push(issue('potion',{name:recipe.name},'Several selected potion Items have this name. Set the output explicitly in Recipes; automatic matching was skipped.','warning'));
+  }
+  if(match){
+   outputs[recipe.id]=match.uuid;
+   autoOutputs[recipe.id]=match.uuid;
+   updatedRecipes.push({...recipe,outputUuid:match.uuid,outputName:match.name});
+  }else{
+   if(oldUuid){outputs[recipe.id]=oldUuid;autoOutputs[recipe.id]=oldUuid;}
+   updatedRecipes.push({...recipe,outputUuid:oldUuid});
+   if(!matches.length)issues.push(issue('potion',{name:recipe.name},
+    oldUuid?'No matching potion remains in the selected sources; existing output retained.':
+    'No potion Item matches this recipe name. Choose one in the Recipes editor.','warning'));
+  }
+ }
+ return {catalog,outputs,autoOutputs,updatedRecipes,issues,mappedPotions:Object.keys(outputs).length};
+}
 /**
  * Pure scan. "sources" contains documents already loaded from the chosen
  * compendiums and document refs resolved from herb descriptions.
@@ -136,16 +179,26 @@ export function scanDirectories(world,config,previous={},sources={}){
  const folders=new Map(itemFolders(world).map(folder=>[folder.id,folder]));
  for(const [id,type,packs] of [
   [selected.herbFolderId,'herb',selected.herbPackIds],
-  [selected.reagentFolderId,'reagent',selected.reagentPackIds]
+  [selected.reagentFolderId,'reagent',selected.reagentPackIds],
+  [selected.potionFolderId,'potion',selected.potionPackIds]
  ]){
   if(id&&!folders.has(id))throw new Error('Selected '+type+' World Item folder no longer exists.');
-  if(!id&&!packs.length)throw new Error('Choose a World Item folder and/or an Item compendium for '+type+'s.');
+  if(type!=='potion'&&!id&&!packs.length)throw new Error('Choose a World Item folder and/or an Item compendium for '+type+'s.');
  }
  const plants=[...folderItems(world,selected.herbFolderId,selected.includeSubfolders),...(sources.herbs||[])];
  const materials=[...folderItems(world,selected.reagentFolderId,selected.includeSubfolders),...(sources.reagents||[])];
+ const potions=[...folderItems(world,selected.potionFolderId,selected.includeSubfolders),...(sources.potions||[])];
+ const potionSourceSelected=Boolean(selected.potionFolderId||selected.potionPackIds.length);
  const references=new Map([...(world?.items?.contents||[]),...plants,...materials,...(sources.references||[])]
    .filter(x=>x?.uuid).map(x=>[x.uuid,x]));
  const issues=[...(sources.issues||[])];
+ if(potionSourceSelected&&selected.potionFolderId&&
+  [selected.herbFolderId,selected.reagentFolderId].includes(selected.potionFolderId))
+  issues.push(issue('folders',folders.get(selected.potionFolderId),'Potion source shares a herb/reagent folder; distinct folders are recommended.','warning'));
+ const matchedPotions=potionSourceSelected?
+  matchPotionRecipes(previous.recipes||[],potions,previous.mappings||{}):
+  {catalog:[],outputs:{},autoOutputs:{},updatedRecipes:previous.recipes||[],issues:[],mappedPotions:0};
+ issues.push(...matchedPotions.issues);
  if(selected.herbFolderId&&selected.herbFolderId===selected.reagentFolderId)issues.push(
   issue('folders',folders.get(selected.herbFolderId),'Herbs and reagents share a folder; separate folders are recommended.','warning')
  );
@@ -285,10 +338,13 @@ export function scanDirectories(world,config,previous={},sources={}){
  const removed=(previous.herbs||[]).filter(h=>!newById.has(h.id)).map(h=>h.name);
  return{
   herbs,herbMappings,herbNames,herbAliases,reagentMappings,reagentNames,reagentAliases,
+  potionCatalog:matchedPotions.catalog,potionMappings:matchedPotions.outputs,
+  autoPotionMappings:matchedPotions.autoOutputs,updatedRecipes:matchedPotions.updatedRecipes,
   report:{
-   herbFolderId:selected.herbFolderId,reagentFolderId:selected.reagentFolderId,
-   herbPackIds:selected.herbPackIds,reagentPackIds:selected.reagentPackIds,
-   herbItems:plants.length,reagentItems:materials.length,validHerbs:herbs.length,
+   herbFolderId:selected.herbFolderId,reagentFolderId:selected.reagentFolderId,potionFolderId:selected.potionFolderId,
+   herbPackIds:selected.herbPackIds,reagentPackIds:selected.reagentPackIds,potionPackIds:selected.potionPackIds,
+   herbItems:plants.length,reagentItems:materials.length,potionItems:matchedPotions.catalog.length,
+   mappedPotions:potionSourceSelected?matchedPotions.mappedPotions:0,validHerbs:herbs.length,
    mappedReagents:Object.keys(reagentMappings).length,added,changed,removed,issues,
    scannedAt:new Date().toISOString()
   }
@@ -315,8 +371,9 @@ export async function scanConfiguredSources(world,config,previous={}, {packs,res
  }
  const herbs=await load(selected.herbPackIds,'Herb');
  const reagents=await load(selected.reagentPackIds,'Reagent');
+ const potions=await load(selected.potionPackIds,'Potion');
  const worldHerbs=folderItems(world,selected.herbFolderId,selected.includeSubfolders);
- const pool=[...herbs,...reagents,...worldHerbs,...folderItems(world,selected.reagentFolderId,selected.includeSubfolders)];
+ const pool=[...herbs,...reagents,...potions,...worldHerbs,...folderItems(world,selected.reagentFolderId,selected.includeSubfolders),...folderItems(world,selected.potionFolderId,selected.includeSubfolders)];
  const have=new Map(pool.filter(x=>x?.uuid).map(x=>[x.uuid,x]));
  const uuids=new Set([
   ...pool.flatMap(x=>sourceAliases(x)),
@@ -334,5 +391,5 @@ export async function scanConfiguredSources(world,config,previous={}, {packs,res
    if(doc?.documentName==='Item'||doc?.system){references.push(doc);have.set(uuid,doc);}
   }catch{/* Broken references are exposed by the pure scan validation. */}
  }
- return scanDirectories(world,selected,previous,{herbs,reagents,references});
+ return scanDirectories(world,selected,previous,{herbs,reagents,potions,references});
 }
