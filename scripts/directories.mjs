@@ -197,7 +197,8 @@ export function scanDirectories(world,config,previous={},sources={}){
   issues.push(issue('folders',folders.get(selected.potionFolderId),'Potion source shares a herb/reagent folder; distinct folders are recommended.','warning'));
  const matchedPotions=potionSourceSelected?
   matchPotionRecipes(previous.recipes||[],potions,previous.mappings||{}):
-  {catalog:[],outputs:{},autoOutputs:{},updatedRecipes:previous.recipes||[],issues:[],mappedPotions:0};
+  {catalog:[],outputs:{},autoOutputs:{},updatedRecipes:previous.recipes||[],issues:[],
+   mappedPotions:(previous.recipes||[]).filter(r=>r.outputUuid||previous.mappings?.outputs?.[r.id]).length};
  issues.push(...matchedPotions.issues);
  if(selected.herbFolderId&&selected.herbFolderId===selected.reagentFolderId)issues.push(
   issue('folders',folders.get(selected.herbFolderId),'Herbs and reagents share a folder; separate folders are recommended.','warning')
