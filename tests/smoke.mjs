@@ -382,6 +382,7 @@ check(herbBrewer.items.contents.some(x=>x.name==='Potion of Healing'),'Herbalism
 
 // Restrict poison-only recipes to a proficient, carried Poisoner's Kit.
 mappings.reagents.common_poisonous='Item.common_poisonous';
+templates['Item.common_poisonous']=new Item('common_poisonous','Common Poisonous','common_poisonous',1);
 const poisonBrewer=equipBrewer(new Actor(new Item('pc','Common Poisonous','common_poisonous',3)));
 poisonBrewer.testUserPermission=()=>true;
 poisonBrewer.system.tools.pois={prof:{multiplier:1,hasProficiency:true}};
