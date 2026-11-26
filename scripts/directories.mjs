@@ -127,48 +127,101 @@ export function itemPacks(packs){
 export function packLabel(pack){
  return pack?.metadata?.label||pack?.title||pack?.collection||'Unnamed Item compendium';
 }
-/** Resolve selected potion Items against formulas without guessing ambiguous names.
- * Explicit recipe output UUIDs always win. Previously auto-linked outputs can
- * follow a newly selected potion source on refresh. */
+/** A narrow, explicit set of equivalent published D&D item names.
+ * No fuzzy substring matching: a fire-resistance formula must never silently
+ * produce an unspecialised Potion of Resistance. */
+export function potionNameKey(name){
+ let key=normalize(String(name??'').replace(/[\u2018\u2019']/g,''));
+ key=key.replace(/\bphilter\b/g,'philtre');
+ if(key==='poison basic')return 'basic poison';
+ if(key==='crawler mucus')return 'carrion crawler mucus';
+ const healing=/^potion of healing (greater|superior|supreme)$/.exec(key);
+ if(healing)return 'potion of '+healing[1]+' healing';
+ const resistance=/^potion of resistance (acid|cold|fire|force|lightning|necrotic|poison|psychic|radiant|thunder)$/.exec(key);
+ if(resistance)return 'potion of '+resistance[1]+' resistance';
+ return key;
+}
+/** A large equipment pack is not a potion catalogue. Include consumables plus
+ * non-consumable homebrew Items that are clearly named for alchemy outputs. */
+const alchemyItem=item=>item?.type==='consumable'||!item?.type||
+ /\b(potion|poison|antitoxin|acid|philtre|philter|serum|venom|tincture|mucus|fumes)\b/i.test(item.name||'');
+/** Resolve a *real* duplicate only when one source is demonstrably preferred:
+ * a proven World import; modern SRD over legacy SRD; or the DMG magic potion
+ * over the separate PHB adventuring-gear version in the same equipment24 pack. */
+export function selectPotionCandidate(matches,previousUuid=''){
+ if(matches.length<=1)return matches[0]||null;
+ const known=matches.find(item=>item.uuid===previousUuid);
+ if(known)return known;
+ const worlds=matches.filter(item=>item.uuid.startsWith('Item.'));
+ if(worlds.length===1&&matches.every(item=>item===worlds[0]||sourceAliases(worlds[0]).includes(item.uuid)))
+  return worlds[0];
+ if(worlds.length)return null; // Distinct World templates must not be guessed.
+ let eligible=matches.filter(item=>item.type==='consumable');
+ if(!eligible.length)eligible=matches;
+ if(eligible.length===1)return eligible[0];
+ const modern=eligible.filter(item=>String(item.system?.source?.rules||'').trim()==='2024');
+ if(modern.length===1)return modern[0];
+ if(modern.length>1)eligible=modern;
+ const pack=uuid=>uuid.replace(/^Compendium\./,'').split('.').slice(0,2).join('.');
+ const onePack=new Set(eligible.map(item=>pack(item.uuid))).size===1;
+ if(onePack&&eligible.length===2&&pack(eligible[0].uuid)==='dnd5e.equipment24'){
+  const dmg=eligible.filter(item=>/^dmg/i.test(item.id||item._id||item.uuid.split('.').at(-1)));
+  const phb=eligible.filter(item=>/^phb/i.test(item.id||item._id||item.uuid.split('.').at(-1)));
+  if(dmg.length===1&&phb.length===1)return dmg[0];
+ }
+ return null;
+}
+/** Match existing recipes to selected potion templates without inventing
+ * missing Items or replacing explicit GM output choices. */
 export function matchPotionRecipes(recipes=[],items=[],mappings={}){
  const candidates=new Map(),issues=[],updatedRecipes=[],outputs={},autoOutputs={};
- const unique=new Map(items.filter(x=>x?.uuid&&x?.name).map(x=>[x.uuid,x]));
- const catalog=[...unique.values()].map(item=>({uuid:item.uuid,name:item.name,img:item.img||'',type:item.type||''}))
+ const results=[],unique=new Map(items.filter(x=>x?.uuid&&x?.name).map(x=>[x.uuid,x]));
+ const available=[...unique.values()].filter(alchemyItem);
+ const catalog=available.map(item=>({uuid:item.uuid,name:item.name,img:item.img||'',type:item.type||''}))
   .sort((a,b)=>a.name.localeCompare(b.name)||a.uuid.localeCompare(b.uuid));
- for(const item of unique.values()){
-  const key=normalize(item.name);
+ for(const item of available){
+  const key=potionNameKey(item.name);
   if(!candidates.has(key))candidates.set(key,[]);
   candidates.get(key).push(item);
  }
  for(const recipe of recipes){
   const oldUuid=recipe.outputUuid||mappings.outputs?.[recipe.id]||'';
-  const tracked=mappings.autoOutputs?.[recipe.id]===oldUuid&&Boolean(oldUuid);
+  const tracked=Boolean(oldUuid&&mappings.autoOutputs?.[recipe.id]===oldUuid);
   if(oldUuid&&!tracked){
    outputs[recipe.id]=oldUuid;
    updatedRecipes.push({...recipe,outputUuid:oldUuid});
+   results.push({id:recipe.id,name:recipe.name,status:'manual',uuid:oldUuid});
    continue;
   }
-  const matches=candidates.get(normalize(recipe.name))||[];
-  let match=matches.length===1?matches[0]:null;
-  // A World copy and its original compendium Item are the same potion.
-  if(matches.length>1){
-   const world=matches.filter(x=>x.uuid.startsWith('Item.'));
-   if(world.length===1&&matches.every(x=>x===world[0]||sourceAliases(world[0]).includes(x.uuid)))match=world[0];
-   else issues.push(issue('potion',{name:recipe.name},'Several selected potion Items have this name. Set the output explicitly in Recipes; automatic matching was skipped.','warning'));
-  }
-  if(match){
-   outputs[recipe.id]=match.uuid;
-   autoOutputs[recipe.id]=match.uuid;
-   updatedRecipes.push({...recipe,outputUuid:match.uuid,outputName:match.name});
+  const matches=candidates.get(potionNameKey(recipe.name))||[];
+  const found=selectPotionCandidate(matches,tracked?oldUuid:'');
+  if(found){
+   outputs[recipe.id]=found.uuid;
+   autoOutputs[recipe.id]=found.uuid;
+   updatedRecipes.push({...recipe,outputUuid:found.uuid,outputName:found.name});
+   results.push({id:recipe.id,name:recipe.name,status:'automatic',uuid:found.uuid});
   }else{
    if(oldUuid){outputs[recipe.id]=oldUuid;autoOutputs[recipe.id]=oldUuid;}
    updatedRecipes.push({...recipe,outputUuid:oldUuid});
-   if(!matches.length)issues.push(issue('potion',{name:recipe.name},
-    oldUuid?'No matching potion remains in the selected sources; existing output retained.':
-    'No potion Item matches this recipe name. Choose one in the Recipes editor.','warning'));
+   const status=matches.length>1?'ambiguous':oldUuid?'retained':'missing';
+   results.push({id:recipe.id,name:recipe.name,status,uuid:oldUuid});
+   if(status==='ambiguous')
+    issues.push(issue('potion',{name:recipe.name},
+     'Multiple different Item templates match this recipe. Choose the intended output explicitly in Recipes.','warning'));
+   else issues.push(issue('potion',{name:recipe.name},
+    oldUuid?'No matching Item in the new potion sources; the previously linked output was retained.':
+    'No matching potion Item in the selected sources. Choose another Item compendium or link an output manually.','warning'));
   }
  }
- return {catalog,outputs,autoOutputs,updatedRecipes,issues,mappedPotions:Object.keys(outputs).length};
+ const counts={
+  mappedPotions:Object.keys(outputs).length,
+  automaticPotions:results.filter(x=>x.status==='automatic').length,
+  manualPotions:results.filter(x=>x.status==='manual').length,
+  retainedPotions:results.filter(x=>x.status==='retained'||x.status==='ambiguous'&&x.uuid).length,
+  missingPotions:results.filter(x=>!x.uuid).length,
+  ambiguousPotions:results.filter(x=>x.status==='ambiguous').length
+ };
+ return {catalog,outputs,autoOutputs,updatedRecipes,issues,recipeResults:results,...counts};
 }
 /**
  * Pure scan. "sources" contains documents already loaded from the chosen
@@ -198,7 +251,9 @@ export function scanDirectories(world,config,previous={},sources={}){
  const matchedPotions=potionSourceSelected?
   matchPotionRecipes(previous.recipes||[],potions,previous.mappings||{}):
   {catalog:[],outputs:{},autoOutputs:{},updatedRecipes:previous.recipes||[],issues:[],
-   mappedPotions:(previous.recipes||[]).filter(r=>r.outputUuid||previous.mappings?.outputs?.[r.id]).length};
+   mappedPotions:(previous.recipes||[]).filter(r=>r.outputUuid||previous.mappings?.outputs?.[r.id]).length,
+    automaticPotions:0,manualPotions:0,retainedPotions:0,missingPotions:0,ambiguousPotions:0,
+    recipeResults:[]};
  issues.push(...matchedPotions.issues);
  if(selected.herbFolderId&&selected.herbFolderId===selected.reagentFolderId)issues.push(
   issue('folders',folders.get(selected.herbFolderId),'Herbs and reagents share a folder; separate folders are recommended.','warning')
@@ -340,12 +395,17 @@ export function scanDirectories(world,config,previous={},sources={}){
  return{
   herbs,herbMappings,herbNames,herbAliases,reagentMappings,reagentNames,reagentAliases,
   potionCatalog:matchedPotions.catalog,potionMappings:matchedPotions.outputs,
+   potionRecipeResults:matchedPotions.recipeResults,
   autoPotionMappings:matchedPotions.autoOutputs,updatedRecipes:matchedPotions.updatedRecipes,
   report:{
    herbFolderId:selected.herbFolderId,reagentFolderId:selected.reagentFolderId,potionFolderId:selected.potionFolderId,
    herbPackIds:selected.herbPackIds,reagentPackIds:selected.reagentPackIds,potionPackIds:selected.potionPackIds,
    herbItems:plants.length,reagentItems:materials.length,potionItems:matchedPotions.catalog.length,
-   mappedPotions:matchedPotions.mappedPotions,validHerbs:herbs.length,
+   potionSourceItems:potions.length,recipeResults:matchedPotions.recipeResults,
+   mappedPotions:matchedPotions.mappedPotions,automaticPotions:matchedPotions.automaticPotions,
+   manualPotions:matchedPotions.manualPotions,missingPotions:matchedPotions.missingPotions,
+   retainedPotions:matchedPotions.retainedPotions,ambiguousPotions:matchedPotions.ambiguousPotions,
+   validHerbs:herbs.length,
    mappedReagents:Object.keys(reagentMappings).length,added,changed,removed,issues,
    scannedAt:new Date().toISOString()
   }
