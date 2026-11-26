@@ -6,10 +6,11 @@ import {recipeEditorInput,recipeEditorImport,recipeEditorDrop} from './recipe-ui
 import {brewToolLabel,brewToolSummary} from './recipe-tools.mjs';
 import {rulesEditorInput} from './rules-ui.mjs';
 import {recipeDC,recipeHours} from './recipes.mjs';
+import {templateImage,FALLBACK_ITEM_IMAGE} from './item-images.mjs';
 
 const esc=value=>foundry.utils.escapeHTML(String(value??''));
 const label=key=>String(key).replaceAll('_',' ').replace(/\b\w/g,x=>x.toUpperCase());
-const defaultImage='icons/consumables/potions/potion-bottle-corked-red.webp';
+const defaultImage=FALLBACK_ITEM_IMAGE;
 const icon=(src,alt='',cls='')=>`<img class="awb-art ${cls}" src="${esc(src||defaultImage)}" alt="${esc(alt)}" loading="lazy">`;
 const titleCase=s=>String(s).replace(/\b\w/g,x=>x.toUpperCase());
 const styleClass=k=>`awb-${String(k).split('_').at(-1)}`;
@@ -70,13 +71,11 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     }));
   }
   _templateImage(uuid){
-    if(!uuid)return defaultImage;
-    if(uuid.startsWith('Item.'))return game.items.get(uuid.slice(5))?.img||defaultImage;
-    if(uuid.startsWith('Compendium.')){
-      const bits=uuid.split('.'),id=bits.at(-1),pack=game.packs.get(bits.slice(1,-1).join('.'));
-      return pack?.index?.get(id)?.img||defaultImage;
-    }
-    return defaultImage;
+    return templateImage(uuid,{
+      worldItems:game.items,packs:game.packs,
+      potions:this.services.potions||[],herbs:this.services.herbs||[],
+      mappings:this.services.mappings()
+    });
   }
   _layout(){
     const mapping=this.services.mappings(),reagentRows=this._inventory(),herbRows=this._herbs();
