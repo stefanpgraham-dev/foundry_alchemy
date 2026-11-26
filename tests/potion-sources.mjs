@@ -135,4 +135,12 @@ const secondPass=matchPotionRecipes(dmgChoice.updatedRecipes,[phb,dmg],
 assert.equal(secondPass.outputs.healing,dmg.uuid);
 assert.equal(secondPass.automaticPotions,1);
 
+
+const typedResistFromLegacy=docPotion('legacyColdResistance','Potion of Cold Resistance','dnd5e.items','2014');
+const typedResistWithBoth=matchPotionRecipes([recipe('cold','Potion of Cold Resistance')],[
+ docPotion('dmgGenericResistance','Potion of Resistance','dnd5e.equipment24'),typedResistFromLegacy
+]);
+assert.equal(typedResistWithBoth.outputs.cold,typedResistFromLegacy.uuid,
+ 'selecting the 2014 SRD Items pack supplies the distinct resistance item absent from the 2024 pack');
+assert.equal(typedResistWithBoth.missingPotions,0);
 console.log('Potion source discovery, optional config, auto/explicit mappings and ambiguity passed.');
