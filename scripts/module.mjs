@@ -2,8 +2,9 @@ import {KEYS, TIERS, COLOURS, DC, HOURS,recipeTier,percentageYield,chanceSucceed
 import {MID,getQty,normal,setting,findMatchedInventory,findHerbs,markActorInventory,planBrew,planExtract,planDowngrade,applyInventory,changeOutputs,template,outputData} from './inventory.mjs';
 import {AlchemyWorkbench} from './workbench.mjs';
 import {scanConfiguredSources,defaultDirectoryConfig,normalizeDirectoryConfig,sourceAliases} from './directories.mjs';
-import {recipeDC,recipeHours,seedDefaults,validateLibrary} from './recipes.mjs';
-import {brewingEligibility,rollAlchemyToolCheck,naturalD20Result} from './eligibility.mjs';
+import {recipeDC,recipeHours,seedDefaults,validateLibrary,migrateRecipeTools} from './recipes.mjs';
+import {brewToolSummary} from './recipe-tools.mjs';
+import {brewingEligibility,selectBrewingTool,rollAlchemyToolCheck,naturalD20Result} from './eligibility.mjs';
 import {defaultRules,validateRules,criticalDiceCount,bonusRollFormula,partialRollFormula,extraTimeHours} from './rules.mjs';
 
 const DIALOG=()=>foundry.applications.api.DialogV2;
@@ -96,6 +97,8 @@ async function brewDialog(actor){
  if(!chosen)return;
  const recipe=recipeBy(chosen.recipeId),batch=assertQty(chosen.batch,worldRules().maxBatch);
  if(!recipe)throw new Error('Unknown recipe.');
+ const qualified=brewingEligibility(actor,recipe);
+ if(!qualified.ok)throw new Error(qualified.errors.join(' '));
  const reagents=findMatchedInventory(actor,map);
  const cost=Object.entries(recipe.cost).map(([k,v])=>`${batch*v} ${slug(k)}`).join(' · ');
  let plan;
@@ -104,15 +107,17 @@ async function brewDialog(actor){
  <details><summary>Eligible reagent stacks (uncheck to exclude)</summary>${listHtml(reagents.map(x=>`<label class="awb-check"><input type="checkbox" name="ingredient" value="${esc(x.id)}" checked>${esc(x.item.name)} × ${x.quantity} — ${esc(slug(x.key))}</label>`))}</details>
  <p><strong>Default allocation:</strong> ${esc(plan.consume.map(x=>`${actor.items.get(x.id)?.name} × ${x.quantity}`).join(', '))||'None'}</p>
  <p><strong>Default returned change:</strong> ${esc(fmt(changeOutputs(plan)))}</p>
+ ${field('Brewing tool (any one approved)',sel('brewTool',qualified.eligible.map(x=>({value:x.id,label:x.label}))))}
+ ${note('Allowed tools: '+brewToolSummary(recipe)+'. The same proficient kit is used for all checks.')}
  ${field('Return change as',sel('change',[{value:'highest',label:'Highest possible tier'},{value:'common',label:'Common tier whenever possible'}]))}
  ${worldRules().failure.followUps===2&&worldRules().failure.twoPassMode==='choice'?field('If both failure follow-up dice pass',sel('doublePass',[{value:'extra',label:`Full yield after ${worldRules().failure.extraTimePercent}% extra brewing time (GM completes later)`},{value:'immediate',label:`Immediate partial yield, 1d${worldRules().failure.partialDieSides} × ${worldRules().failure.partialPercentPerPoint}%`}])):''}
  ${note('Confirm that the GM has allowed the required brewing time to pass. Ingredient quantities and mappings are revalidated before rolling. All dice appear in chat and Dice So Nice.')}</div>`;
- const response=await wait('Alchemy — Brewing Ingredients',content,[button('brew','Brew',(e,b)=>({selectedIds:[...b.form.querySelectorAll('input[name="ingredient"]:checked')].map(x=>x.value),change:b.form.elements.change.value,doublePass:b.form.elements.doublePass?.value}),true)]);
+ const response=await wait('Alchemy — Brewing Ingredients',content,[button('brew','Brew',(e,b)=>({selectedIds:[...b.form.querySelectorAll('input[name="ingredient"]:checked')].map(x=>x.value),change:b.form.elements.change.value,toolId:b.form.elements.brewTool.value,doublePass:b.form.elements.doublePass?.value}),true)]);
  if(!response)return;
  // Recompute preview after player filters sources; no inventory change here.
  const selectedPlan=planBrew(actor,recipe,batch,map,response.selectedIds,response.change);
  const confirm=await DIALOG().confirm({window:{title:'Confirm Brewing'},content:`<div class="awb"><p>${esc(recipe.name)} × ${batch}</p><p>Consume: ${esc(selectedPlan.consume.map(x=>`${actor.items.get(x.id)?.name} × ${x.quantity}`).join(', '))}</p><p>Return change: ${esc(fmt(changeOutputs(selectedPlan)))}</p><p>Time: ${recipeHours(recipe,worldRules())} hours. Reagents may be lost on failure.</p></div>`,yes:{label:'Roll & Consume'},no:{label:'Cancel'},rejectClose:false});
- if(confirm)await submitAction({mode:'brew',actorId:actor.id,recipeId:recipe.id,batch,selectedIds:response.selectedIds,change:response.change,doublePass:response.doublePass});
+ if(confirm)await submitAction({mode:'brew',actorId:actor.id,recipeId:recipe.id,batch,selectedIds:response.selectedIds,change:response.change,toolId:response.toolId,doublePass:response.doublePass});
 }
 
 async function saveRules(raw){
@@ -282,14 +287,14 @@ async function requestFailureChoice(actor,senderId,rules){
    rules:{failure:rules.failure}});
  });
 }
-async function brewOutcome(actor,recipe,batch,{senderId,doublePass,rules=worldRules()}={}){
+async function brewOutcome(actor,recipe,batch,{senderId,doublePass,rules=worldRules(),toolId='alchemist'}={}){
  const policy=validateRules(rules),dc=recipeDC(recipe,policy);
- const initial=await rollAlchemyToolCheck(actor,dc);
+ const initial=await rollAlchemyToolCheck(actor,dc,{toolId,recipe});
  const natural=naturalD20Result(initial);
  if(natural>=policy.critical.naturalThreshold){
   let passes=0;
   for(let i=0;i<policy.critical.followUps;i++){
-   const check=await rollAlchemyToolCheck(actor,dc,{followUp:true});
+   const check=await rollAlchemyToolCheck(actor,dc,{followUp:true,toolId,recipe});
    passes+=Number(check.total>=dc);
   }
   const diceCount=criticalDiceCount(passes,policy);
@@ -306,7 +311,7 @@ async function brewOutcome(actor,recipe,batch,{senderId,doublePass,rules=worldRu
  if(initial.total>=dc)return {status:'success',produced:batch};
  let passes=0;
  for(let i=0;i<policy.failure.followUps;i++){
-  const check=await rollAlchemyToolCheck(actor,dc,{followUp:true});
+  const check=await rollAlchemyToolCheck(actor,dc,{followUp:true,toolId,recipe});
   passes+=Number(check.total>=dc);
  }
  if(passes===0){
@@ -393,19 +398,19 @@ async function performAction(p,senderId){
  if(recipe.enabled===false)throw new Error('That recipe is disabled by the GM.');
  if((p.doublePass!==undefined&&!['immediate','extra'].includes(p.doublePass))||!['highest','common'].includes(p.change))throw new Error('Invalid brewing options.');
  if(!Array.isArray(p.selectedIds)||p.selectedIds.length>200||p.selectedIds.some(x=>typeof x!=='string'))throw new Error('Invalid ingredient selection.');
- const eligible=brewingEligibility(actor);
- if(!eligible.ok)throw new Error(eligible.errors.join(' '));
+ // GM verifies the exact permitted, equipped, proficient kit.
+ const selectedTool=selectBrewingTool(actor,recipe,p.toolId);
  const plan=planBrew(actor,recipe,batch,map,p.selectedIds,p.change);
  // Verify all change output templates before taking any dice or inventory changes.
  for(const key of Object.keys(plan.return))if(!await template(map.reagents?.[key]))throw new Error(`Reagent change item is unmapped: ${key}`);
  // Snapshot the exact output template before dice are rolled, protecting delayed rewards from later edits.
  const outputSnapshot=await outputData('potion',recipe.id,map,recipe.name);
- const result=await brewOutcome(actor,recipe,batch,{senderId,doublePass:p.doublePass,rules:policy});
+ const result=await brewOutcome(actor,recipe,batch,{senderId,doublePass:p.doublePass,rules:policy,toolId:selectedTool.id});
  const outputs=changeOutputs(plan);
  if(result.produced)outputs.push({kind:'potion',id:recipe.id,name:recipe.name,quantity:result.produced,snapshot:outputSnapshot});
  if(result.status==='pending'){
   const jobs=game.settings.get(MID,'pending');
-  const job={id:nonce(),actorId:actor.id,actorName:actor.name,recipeId:recipe.id,recipeName:recipe.name,batch,extraHours:result.extraHours,createdAt:Date.now(),status:'reserving',recipeSnapshot:structuredClone(recipe),rulesSnapshot:structuredClone(policy),outputSnapshot};
+  const job={id:nonce(),actorId:actor.id,actorName:actor.name,recipeId:recipe.id,recipeName:recipe.name,batch,extraHours:result.extraHours,createdAt:Date.now(),status:'reserving',recipeSnapshot:structuredClone(recipe),rulesSnapshot:structuredClone(policy),brewToolId:selectedTool.id,outputSnapshot};
   // Record as non-redeemable first. It becomes ready only after all ingredients were consumed.
   await game.settings.set(MID,'pending',[...jobs,job]);
   try {
@@ -422,7 +427,7 @@ async function performAction(p,senderId){
  const outputItem=await template(map.outputs?.[recipe.id]);
  const art=outputSnapshot?.img||outputItem?.img||'icons/consumables/potions/potion-bottle-corked-red.webp';
  const outcomeLabels={critical:'Critical Success',success:'Successful Brew',partial:'Partial Success',pending:'Awaiting Extra Brewing Time',lost:'Failed Brew'};
- await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<article class="awb-chat awb-result awb-result-${esc(result.status)}"><header><img src="${esc(art)}" alt=""><div><small>ALCHEMICAL BREWING · ${esc(outcomeLabels[result.status]||result.status)}</small><h3>${esc(recipe.name)}</h3></div></header><div class="awb-result-counters"><span><strong>${batch}</strong> attempted</span><span><strong>${result.produced}</strong> produced</span></div>${extra?`<p>${esc(extra)}</p>`:''}<p><strong>Reagents returned:</strong> ${esc(fmt(changeOutputs(plan)))}</p>${result.bonusPct!==undefined?`<p><strong>Critical bonus:</strong> +${result.bonusPct}% — ${result.bonus} additional potions</p>`:''}${result.percent!==undefined?`<p><strong>Partial yield:</strong> ${result.percent}%</p>`:''}</article>`});
+ await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<article class="awb-chat awb-result awb-result-${esc(result.status)}"><header><img src="${esc(art)}" alt=""><div><small>ALCHEMICAL BREWING · ${esc(outcomeLabels[result.status]||result.status)}</small><h3>${esc(recipe.name)}</h3></div></header><div class="awb-result-counters"><span><strong>${batch}</strong> attempted</span><span><strong>${result.produced}</strong> produced</span></div>${extra?`<p>${esc(extra)}</p>`:''}<p><strong>Brewing check:</strong> Intelligence (${esc(selectedTool.label)})</p><p><strong>Reagents returned:</strong> ${esc(fmt(changeOutputs(plan)))}</p>${result.bonusPct!==undefined?`<p><strong>Critical bonus:</strong> +${result.bonusPct}% — ${result.bonus} additional potions</p>`:''}${result.percent!==undefined?`<p><strong>Partial yield:</strong> ${result.percent}%</p>`:''}</article>`});
  return `${recipe.name}: ${result.status}; ${result.produced} potions made.${extra?' '+extra:''}`;
 }
 function onSocket(payload,senderId){
@@ -469,7 +474,7 @@ Hooks.once('init',()=>{
   if(setting.key===MID+'.herbCatalog')herbs=game.settings.get(MID,'herbCatalog')||[];
   if(setting.key===MID+'.recipeLibrary'){
    const data=game.settings.get(MID,'recipeLibrary');
-   if(data?.initialized)recipes.splice(0,recipes.length,...data.recipes);
+   if(data?.initialized)recipes.splice(0,recipes.length,...migrateRecipeTools(data.recipes).recipes);
   }
   if([MID+'.herbCatalog',MID+'.mappings',MID+'.recipeLibrary',MID+'.rules'].includes(setting.key)){
    for(const app of openWorkbenches){
@@ -489,7 +494,12 @@ Hooks.once('ready',async()=>{
   const base=`modules/${MID}/data/`;
   defaultRecipes=await fetch(`${base}recipes.json`).then(x=>{if(!x.ok)throw Error('Default recipes missing');return x.json();});
   const library=game.settings.get(MID,'recipeLibrary');
-  if(library?.initialized)recipes.splice(0,recipes.length,...validateLibrary(library.recipes,{allowMissingOutput:true}));
+  if(library?.initialized){
+    const migrated=migrateRecipeTools(library.recipes);
+    recipes.splice(0,recipes.length,...migrated.recipes);
+    if(game.user.isGM&&migrated.changed)
+      await game.settings.set(MID,'recipeLibrary',{initialized:true,recipes:migrated.recipes});
+   }
   else{
    const seeded=seedDefaults(defaultRecipes,setting()?.outputs||{});
    recipes.splice(0,recipes.length,...seeded);

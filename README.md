@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.5.1 — corrected herb identity and Foundry rarity mapping.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.5.2 — recipe-linked brewing tool alternatives and proficiency checks.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -66,6 +66,20 @@ Existing default recipes can function without a linked potion Item using the pre
 **Pending brew safety:** When a brew requires additional time, the GM stores the complete recipe and a snapshot of the output Item. Editing/deleting the formula or changing the output mapping later will not alter that pending reward. Pending jobs created by earlier releases without a snapshot retain the best-effort legacy lookup.
 
 **Backups and limitations:** Before first updating to v0.4.0, back up the Foundry world. Automated simulation tests exercise recipe validation, migration, import/export, dry runs and pending-brew snapshots. The drag-and-drop UI and true multiplayer flows still need testing inside Foundry v14.
+
+## v0.5.2 — recipe-specific brewing tools
+
+**Each recipe now lists the permitted kits (EITHER / OR):** Alchemist's Supplies (`alchemist`), Herbalism Kit (`herb`), and Poisoner's Kit (`pois`). These are the native Foundry D&D 5e tool identifiers.
+
+Open **Alchemy → GM Setup → Recipes** and select a formula. Under **Permitted brewing tools**, tick one or more kits and **Save Recipe**. All 44 shipped recipes have researched/sensible default allocations appropriate to their effects: healing and nature remedies generally permit Herbalism Kit or Alchemist's Supplies; magical transformations and resistance potions generally use Alchemist's Supplies; most toxins require Poisoner's Kit, with mixed choices for antitoxin, acids and chemical poisons. The defaults are editable per world, and **Restore Default Formula** also restores its default tool selection.
+
+The **Brew Potions** list now checks both reagents **and** whether the character carries and is proficient with at least one tool allowed by that formula. **Show recipes missing ingredients** also reveals formulas unavailable due to missing tools or proficiency. Recipe cards show the permitted tools. When multiple qualified kits are available, the player can select which to use. A recipe is craftable with **any one** of its approved kits; proficiency in all listed kits is not required. If no approved equipped/proficient kit is available, the Brew button is disabled.
+
+All brewing checks use **Intelligence + the chosen native D&D 5e tool check**, including the initial roll and both independent critical/failure follow-ups. Proficiency or expertise is detected from the actor's D&D 5e tool data, alongside the inventory tool Item. The GM validates recipe permissions, inventory and proficiency before any dice or reagents are consumed. The chosen kit appears on the brewing result chat card.
+
+**Migration:** On the first GM startup after update, old saved world recipes with no `brewingTools` field receive the new shipped default for that recipe ID (custom recipes default to Alchemist's Supplies). Existing recipe ingredients, output mappings, disabled state, rarity tier, DC/time overrides, and active pending batches remain untouched. Recipes that already specify allowed tools keep them. JSON recipe exports include the tool assignments; older imports with no assignments are upgraded by the same defaulting rule. Custom recipes must allow at least one supported kit.
+
+**Other unchanged rules:** One brewing check per batch; the same batch time as one potion; global DCs/time, existing critical percentages, no-check herb extraction and reagent downgrading, and Dice So Nice.
 
 ## v0.5.1 — herb source and rarity corrections
 
@@ -173,3 +187,10 @@ No recipe formulas, inventory records, GM mappings, active brews or proficiency 
 - Wired DC/time, maximum batch, natural critical thresholds, critical dice and bonuses, failure outcomes, partial yields and delayed brewing time into the server-authoritative brewing path.
 - Preserved recipe-specific difficulty/time overrides, Dice So Nice, source mapping and existing pending jobs.
 - Added model, UI and GM transaction regression tests for changed values.
+
+## v0.5.2 release highlights
+
+- Native recipe-level tool eligibility, carried-kit recognition and proficiency/expertise validation.
+- GM-selectable allowed kits for every recipe and player selection when multiple are qualified.
+- Migrated 44 default recipe formulas with tool assignments, keeping world overrides intact.
+- Added tests for the D&D5e `alchemist`, `herb` and `pois` IDs, tool permissions, progression and GM-side denial before reagent consumption.

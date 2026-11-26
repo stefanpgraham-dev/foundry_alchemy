@@ -2,6 +2,8 @@ import {KEYS,DC,HOURS,recipeTier} from './engine.mjs';
 import {reagentKeyFromName,sourceAliases} from './directories.mjs';
 import {recipeDC,recipeHours,recipeTest,validateRecipe,parseRecipeImport,exportRecipeLibrary,recipeComparison,mergeRecipeLibraries,importMissingDefaults,restoreDefault,recipeWarnings} from './recipes.mjs';
 import {findMatchedInventory} from './inventory.mjs';
+import {BREW_TOOL_IDS,brewToolLabel,brewingToolsForRecipe} from './recipe-tools.mjs';
+import {brewingEligibility} from './eligibility.mjs';
 const esc=v=>foundry.utils.escapeHTML(String(v??''));
 const label=s=>String(s).replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
 const btn=(action,content,props='')=>'<button type="button" data-action="'+action+'" '+props+'>'+content+'</button>';
@@ -39,10 +41,17 @@ function editor(app){
  const palette=remaining.length?'<div class="awb-recipe-palette"><select data-recipe-add-select>'+remaining.map(key=>
   '<option value="'+key+'">'+label(key)+(maps.reagents?.[key]?'':' (unmapped)')+'</option>').join('')+'</select>'+
   btn('gm-recipe-add','Add reagent')+'</div>':'';
+ const allowed=r.brewingTools===undefined?brewingToolsForRecipe(r):r.brewingTools;
+ const toolChoices='<fieldset class="awb-brewing-tools"><legend>Permitted brewing tools — any one suffices</legend>'+
+  '<p class="awb-muted">Players must carry and have proficiency with the chosen kit; the same kit is used for all brewing checks.</p>'+
+  '<div class="awb-brewing-tool-grid">'+BREW_TOOL_IDS.map(id=>
+    '<label><input type="checkbox" data-recipe-tool="'+id+'" '+(allowed.includes(id)?'checked':'')+'> '+
+    esc(brewToolLabel(id))+'</label>').join('')+'</div></fieldset>';
  const test=app.recipeTestResult;
  const testPanel=test?'<div class="awb-recipe-test-result"><p><strong>'+test.batch+' potion dry run:</strong> DC '+test.dc+', '+test.hours+
   ' hours; '+test.maximumCraftable+' craftable from selected character inventory.</p>'+
   '<p>Required: '+esc(Object.entries(test.requirements).map(([k,v])=>label(k)+' ×'+v).join(', '))+'</p>'+
+  (app.recipeTestEligibility?'<p><strong>Qualified tools:</strong> '+esc(app.recipeTestEligibility.eligible.map(x=>x.label).join(' / ')||'None')+'</p>':'')+
   (test.craftable?'<p>Consume: '+esc(test.plan.consume.map(x=>app.actor.items.get(x.id)?.name+' ×'+x.quantity).join(', '))+
   '; change: '+esc(Object.entries(test.plan.return).map(([k,v])=>label(k)+' ×'+v).join(', ')||'none')+'</p>':
   '<p class="awb-alert awb-alert-warn">'+esc(test.reason)+'</p>')+'</div>':'';
@@ -52,7 +61,7 @@ function editor(app){
   '<h3>Potion output</h3><div class="awb-recipe-drop awb-recipe-output" data-recipe-drop="output">'+
   '<img class="awb-art awb-featured" src="'+esc(outputImage(app,r))+'" alt=""><div><strong>'+
   (r.outputUuid?esc(r.outputName||'Linked potion Item')+' — drop to change':'Drop potion Item here')+'</strong><small>'+esc(r.outputUuid||'Preserve Foundry activities and effects')+'</small></div></div>'+
-  '<h3>Required reagents per potion</h3><div class="awb-recipe-ingredient-list">'+ingredientRows+'</div>'+
+  toolChoices+'<h3>Required reagents per potion</h3><div class="awb-recipe-ingredient-list">'+ingredientRows+'</div>'+
   '<div class="awb-recipe-drop" data-recipe-drop="reagent"><i class="fas fa-flask"></i> Drop reagent Item here</div>'+palette+
   '<div class="awb-recipe-overrides"><label><input data-recipe-enabled type="checkbox" '+(r.enabled?'checked':'')+'> Available to players</label>'+
   '<label><input data-recipe-override-dc type="checkbox" '+(r.dcOverride!==null?'checked':'')+'> Custom DC</label>'+
@@ -82,7 +91,7 @@ export function recipeEditorView(app){
   '<div class="awb-recipe-drop awb-recipe-create" data-recipe-drop="new"><i class="fas fa-plus-circle"></i> Drop potion Item to add a recipe</div>'+
   '<div class="awb-recipe-library-list">'+list.map(r=>btn('gm-recipe-select',
   '<img class="awb-art" src="'+esc(outputImage(app,r))+'" alt=""><span><strong>'+esc(r.name)+'</strong><small>'+
-  label(recipeTier(r))+' · DC '+recipeDC(r,app.services.rules?.())+' · '+(r.enabled?'Enabled':'Disabled')+' · '+r.source+'</small></span>',
+  label(recipeTier(r))+' · DC '+recipeDC(r,app.services.rules?.())+' · '+esc(brewingToolsForRecipe(r).map(brewToolLabel).join(' / '))+' · '+(r.enabled?'Enabled':'Disabled')+'</small></span>',
   'data-id="'+esc(r.id)+'" class="awb-recipe-library-card '+(app.recipeId===r.id?'selected':'')+'"')).join('')+'</div>'+
   '<div class="awb-recipe-library-tools">'+btn('gm-recipe-import-missing','Import Missing Defaults')+
   btn('gm-recipe-export','Export JSON')+
@@ -97,6 +106,8 @@ function syncDraft(app){
  r.name=root.querySelector('[data-recipe-name]')?.value??r.name;
  for(const input of root.querySelectorAll('[data-recipe-qty]'))r.cost[input.dataset.recipeQty]=Number(input.value);
  r.enabled=root.querySelector('[data-recipe-enabled]')?.checked??r.enabled;
+ const kitInputs=root.querySelectorAll('[data-recipe-tool]');
+ if(kitInputs.length)r.brewingTools=[...kitInputs].filter(x=>x.checked).map(x=>x.dataset.recipeTool);
  r.dcOverride=root.querySelector('[data-recipe-override-dc]')?.checked?Number(root.querySelector('[data-recipe-dc]')?.value):null;
  r.hoursOverride=root.querySelector('[data-recipe-override-hours]')?.checked?Number(root.querySelector('[data-recipe-hours]')?.value):null;
  app.recipeTestBatch=Number(root.querySelector('[data-recipe-test-batch]')?.value)||1;
@@ -124,7 +135,7 @@ export function recipeEditorInput(app,event){
  if(el.matches?.('[data-recipe-filter]')){app.recipeFilter=el.value;void app.render();return true;}
  if(el.matches?.('[data-recipe-sort]')){app.recipeSort=el.value;void app.render();return true;}
  if(el.matches?.('[data-recipe-test-batch]')){app.recipeTestBatch=Number(el.value);return true;}
- if(el.matches?.('[data-recipe-name],[data-recipe-qty],[data-recipe-dc],[data-recipe-hours],[data-recipe-enabled],[data-recipe-override-dc],[data-recipe-override-hours]')){
+ if(el.matches?.('[data-recipe-name],[data-recipe-qty],[data-recipe-dc],[data-recipe-hours],[data-recipe-enabled],[data-recipe-override-dc],[data-recipe-override-hours],[data-recipe-tool]')){
   syncDraft(app);app.recipeDirty=true;app.recipeTestResult=null;
   if(el.matches('[data-recipe-override-dc],[data-recipe-override-hours]'))void app.render();
   return true;
@@ -142,7 +153,7 @@ export async function recipeEditorAction(app,action,target){
  }
  if(action==='gm-recipe-new'){
   if(!await discard(app))return true;
-  app.recipeDraft={id:makeId(),name:'New Potion',cost:{},outputUuid:'',outputName:'',source:'custom',enabled:true,dcOverride:null,hoursOverride:null};
+  app.recipeDraft={id:makeId(),name:'New Potion',cost:{},outputUuid:'',outputName:'',source:'custom',enabled:true,dcOverride:null,hoursOverride:null,brewingTools:['alchemist']};
   app.recipeId=app.recipeDraft.id;app.recipeDirty=true;app.recipeTestResult=null;return true;
  }
  if(action==='gm-recipe-add'){
@@ -205,6 +216,7 @@ export async function recipeEditorAction(app,action,target){
   syncDraft(app);
   const clean=validateRecipe(app.recipeDraft,{allowMissingOutput:true});
   app.recipeTestResult=recipeTest(clean,app.recipeTestBatch,findMatchedInventory(app.actor,app.services.mappings()),app.services.rules?.());
+  app.recipeTestEligibility=brewingEligibility(app.actor,clean);
   return true;
  }
  return false;
@@ -263,7 +275,7 @@ export async function recipeEditorDrop(app,event){
  if(doc?.documentName!=='Item')throw Error('Drop a World Item or compendium Item.');
  if(zone.dataset.recipeDrop==='new'){
   if(!await discard(app))return true;
-  app.recipeDraft={id:makeId(),name:doc.name,cost:{},outputUuid:uuid,outputName:doc.name,source:'custom',
+  app.recipeDraft={id:makeId(),name:doc.name,cost:{},outputUuid:uuid,outputName:doc.name,source:'custom',brewingTools:['alchemist'],
     enabled:true,dcOverride:null,hoursOverride:null};
   app.recipeId=app.recipeDraft.id;app.recipeDirty=true;
  }else if(zone.dataset.recipeDrop==='output'){

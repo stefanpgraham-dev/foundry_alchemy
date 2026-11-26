@@ -3,6 +3,7 @@ import {getQty,findMatchedInventory,findHerbs,inventoryAudit,planBrew,setting,no
 import {captureWorkbenchViewport,restoreWorkbenchViewport} from './viewport.mjs';
 import {directoryView,directoryAction} from './directory-ui.mjs';
 import {recipeEditorInput,recipeEditorImport,recipeEditorDrop} from './recipe-ui.mjs';
+import {brewToolLabel,brewToolSummary} from './recipe-tools.mjs';
 import {rulesEditorInput} from './rules-ui.mjs';
 import {recipeDC,recipeHours} from './recipes.mjs';
 
@@ -30,7 +31,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     super({...options,id:`alchemy-workbench-${actor.id}`});
     this.actor=actor;
     this.services=services;
-    this.tab='brew';this.search='';this.showUnavailable=false;this.recipeId=null;this.batch=1;
+    this.tab='brew';this.search='';this.showUnavailable=false;this.recipeId=null;this.batch=1;this.brewToolId=null;
     this.selectedHerbId=null;this.herbKey=null;this.herbQty=1;
     this.selectedRefineId=null;this.refineTier=null;this.refineQty=1;
     this.change='highest';this.selectedIds=null;
@@ -64,7 +65,8 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     const inventory=this._inventory();
     return this.services.recipes.filter(recipe=>recipe.enabled!==false).map(recipe=>({
       recipe,
-      max:maximumCraftableBatch(recipe,inventory,this.services.rules?.().maxBatch??100)
+      max:maximumCraftableBatch(recipe,inventory,this.services.rules?.().maxBatch??100),
+      qualification:this.services.brewingEligibility(this.actor,recipe)
     }));
   }
   _templateImage(uuid){
@@ -90,26 +92,37 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
       <main class="awb-main">${this.tab==='brew'?this._brew():this.tab==='extract'?this._extract():this.tab==='refine'?this._refine():this.tab==='inventory'?this._inventoryTab():this._gm()}</main>
     </div>`;
   }
+  _toolOptions(qualification){
+    if(!qualification?.eligible?.length)return '';
+    return '<select data-brew-tool>'+qualification.eligible.map(o=>
+      '<option value="'+esc(o.id)+'" '+(this.brewToolId===o.id?'selected':'')+'>'+esc(o.label)+'</option>'
+    ).join('')+'</select>';
+  }
   _brew(){
-    const entries=this._readyRecipes(),eligible=entries.filter(x=>x.max>0);
+    const entries=this._readyRecipes(),eligible=entries.filter(x=>x.max>0&&x.qualification.ok);
     const visible=this.showUnavailable?entries:eligible;
-    const chosen=entries.find(x=>x.recipe.id===this.recipeId && x.max>0)||eligible[0];
-    if(chosen){this.recipeId=chosen.recipe.id;this.batch=Math.max(1,Math.min(chosen.max,this.batch));}
+    const chosen=entries.find(x=>x.recipe.id===this.recipeId && x.max>0&&x.qualification.ok)||eligible[0];
+    if(chosen){
+      this.recipeId=chosen.recipe.id;
+      this.batch=Math.max(1,Math.min(chosen.max,this.batch));
+      if(!chosen.qualification.eligible.some(x=>x.id===this.brewToolId))
+        this.brewToolId=chosen.qualification.eligible[0]?.id||null;
+    }
     const search=this.search.toLowerCase();
     const mapping=this.services.mappings();
     const items=visible.filter(x=>x.recipe.name.toLowerCase().includes(search));
     let plan=null,issue='';
     if(chosen)try{plan=planBrew(this.actor,chosen.recipe,this.batch,mapping,this.selectedIds,this.change);}catch(err){issue=err.message;}
-    const cards=items.map(({recipe,max})=>{
-      const rarity=recipeTier(recipe),selected=chosen?.recipe.id===recipe.id;
+    const cards=items.map(({recipe,max,qualification})=>{
+      const rarity=recipeTier(recipe),selected=chosen?.recipe.id===recipe.id,canBrew=max>0&&qualification.ok;
       const artwork=this._templateImage(mapping.outputs?.[recipe.id]);
-      return `<button class="awb-recipe-card ${selected?'selected':''} ${max?'':'disabled'}" type="button" data-recipe="${esc(recipe.id)}" ${max?'':'disabled'}>
-        ${icon(artwork,recipe.name)}<span class="awb-recipe-content"><strong>${esc(recipe.name)}</strong><small>${titleCase(rarity)} · DC ${recipeDC(recipe,this.services.rules?.())}</small></span>
-        <span class="awb-max">${max?`×${max}`:'Unavailable'}</span></button>`;
+      return `<button class="awb-recipe-card ${selected?'selected':''} ${canBrew?'':'disabled'}" type="button" data-recipe="${esc(recipe.id)}" ${canBrew?'':'disabled'}>
+        ${icon(artwork,recipe.name)}<span class="awb-recipe-content"><strong>${esc(recipe.name)}</strong><small>${titleCase(rarity)} · DC ${recipeDC(recipe,this.services.rules?.())} · ${esc(brewToolSummary(recipe))}</small></span>
+        <span class="awb-max">${canBrew?`×${max}`:max?'Tool required':'Unavailable'}</span></button>`;
     }).join('');
     const recipe=chosen?.recipe,tier=recipe?recipeTier(recipe):'common';
-    const eligibility=this.services.brewingEligibility(this.actor);
-    const accessNotice=eligibility.ok?'':message(eligibility.errors.join(' '),'warn');
+    const eligibility=chosen?.qualification||null;
+    const accessNotice=eligibility?.ok?'':message(entries.find(x=>x.max>0)?.qualification.errors.join(' ')||'Obtain ingredients and a proficient, recipe-approved brewing kit.','warn');
     return `<div class="awb-brew-layout">
       <section class="awb-panel awb-browser"><div class="awb-panel-heading"><h2>Formulae</h2>${tag(`${eligible.length} craftable`,'awb-available')}</div>
         <label class="awb-search-wrap"><i class="fas fa-search" aria-hidden="true"></i><input data-search="recipes" placeholder="Search potions and poisons…" value="${esc(this.search)}"></label>
@@ -118,6 +131,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
       </section>
       <section class="awb-panel awb-detail">${accessNotice}${recipe?`
         <div class="awb-detail-head">${icon(this._templateImage(mapping.outputs?.[recipe.id]),recipe.name,'awb-featured')}<div><p class="awb-eyebrow">${esc(titleCase(tier))} formula</p><h2>${esc(recipe.name)}</h2><div class="awb-pills">${tag(`DC ${recipeDC(recipe,this.services.rules?.())}`)}${tag(`${recipeHours(recipe,this.services.rules?.())} hours`)}${tag(`Max ${chosen.max}`)}</div></div></div>
+        <h3>Brewing tool</h3><label class="awb-brew-tool-selector"><span>Use one qualified kit</span>${this._toolOptions(eligibility)}</label><p class="awb-muted">Allowed: ${esc(brewToolSummary(recipe))}. The selected kit performs the initial and follow-up checks.</p>
         <h3>Ingredients per potion</h3><div class="awb-material-list">${Object.entries(recipe.cost).map(([k,q])=>marker(k,q)).join('')}</div>
         <div class="awb-batch-control"><div><strong>Batch size</strong><small>One brew check · same preparation time</small></div><div class="awb-stepper"><button type="button" data-action="batch-minus" ${this.batch<=1?'disabled':''}>−</button><output>${this.batch}</output><button type="button" data-action="batch-plus" ${this.batch>=chosen.max?'disabled':''}>+</button></div></div>
         <h3>Ingredient allocation</h3>
@@ -222,6 +236,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     }
     if(el.matches?.('[data-show-unavailable]')){this.showUnavailable=el.checked;void this.render();}
     if(el.matches?.('[data-change]')){this.change=el.value;void this.render();}
+    if(el.matches?.('[data-brew-tool]')){this.brewToolId=el.value;void this.render();}
     if(el.matches?.('[data-stack]')){
       this.selectedIds=[...this.element.querySelectorAll('[data-stack]:checked')].map(x=>x.dataset.stack);void this.render();
     }
@@ -254,19 +269,20 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     finally{this.busy=false;await this.render();}
   }
   async _doBrew(){
-    const eligibility=this.services.brewingEligibility(this.actor);
-    if(!eligibility.ok)throw new Error(eligibility.errors.join(' '));
     const recipe=this.services.recipes.find(x=>x.id===this.recipeId);
     if(!recipe)throw new Error('Choose an available recipe.');
+    const eligibility=this.services.brewingEligibility(this.actor,recipe);
+    if(!eligibility.ok)throw new Error(eligibility.errors.join(' '));
+    if(!eligibility.eligible.some(x=>x.id===this.brewToolId))throw new Error('Select a permitted brewing kit with proficiency.');
     const map=this.services.mappings(),plan=planBrew(this.actor,recipe,this.batch,map,this.selectedIds,this.change);
     const rarity=recipeTier(recipe);
     const confirmation=await foundry.applications.api.DialogV2.confirm({
       window:{title:'Confirm Alchemical Brewing'},
-      content:`<div class="awb-confirm"><h2>${esc(recipe.name)} ×${this.batch}</h2><p>Intelligence + Alchemist's Supplies · DC ${recipeDC(recipe,this.services.rules?.())} · ${recipeHours(recipe,this.services.rules?.())} hours</p><p><strong>Ingredients:</strong> ${esc(plan.consume.map(x=>`${this.actor.items.get(x.id)?.name} ×${x.quantity}`).join(', '))}</p><p><strong>Returned change:</strong> ${esc(fmt(Object.entries(plan.return).map(([id,quantity])=>({id,quantity}))))}</p><p>Failure may consume the ingredients without producing potions.</p></div>`,
+      content:`<div class="awb-confirm"><h2>${esc(recipe.name)} ×${this.batch}</h2><p>Intelligence (${esc(brewToolLabel(this.brewToolId))}) · DC ${recipeDC(recipe,this.services.rules?.())} · ${recipeHours(recipe,this.services.rules?.())} hours</p><p><strong>Ingredients:</strong> ${esc(plan.consume.map(x=>`${this.actor.items.get(x.id)?.name} ×${x.quantity}`).join(', '))}</p><p><strong>Returned change:</strong> ${esc(fmt(Object.entries(plan.return).map(([id,quantity])=>({id,quantity}))))}</p><p>Failure may consume the ingredients without producing potions.</p></div>`,
       yes:{label:'Roll & Brew'},no:{label:'Cancel'},rejectClose:false
     });
     if(!confirmation)return;
-    const answer=await this.services.submit({mode:'brew',actorId:this.actor.id,recipeId:recipe.id,batch:this.batch,selectedIds:this.selectedIds??this._inventory().map(x=>x.id),change:this.change});
+    const answer=await this.services.submit({mode:'brew',actorId:this.actor.id,recipeId:recipe.id,batch:this.batch,selectedIds:this.selectedIds??this._inventory().map(x=>x.id),change:this.change,toolId:this.brewToolId});
     this.notice={text:answer||'Brewing resolved. Review the chat log for dice and result details.',kind:'good'};
   }
   async _doExtract(){

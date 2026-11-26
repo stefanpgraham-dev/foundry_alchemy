@@ -1040,3 +1040,88 @@ body.theme-light .awb-chat.awb-result,
 @media(max-width:480px) {
   .alchemy-workbench.awb-app .awb-rarity-grid {grid-template-columns: minmax(0,1fr);}
 }
+
+
+/* v0.5.2 — per-recipe brewing tool choices (Foundry light/dark aware). */
+.alchemy-workbench.awb-app .awb-brewing-tools {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin:11px 0;
+  padding:13px 14px;
+  min-width:0;
+  border:1px solid var(--awb-ui-border-subtle);
+  border-radius:8px;
+  background:var(--awb-ui-panel-alt);
+  color:var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-brewing-tools legend {
+  padding:0 6px;
+  color:var(--awb-ui-heading);
+  font-weight:700;
+  font-size:13px;
+}
+.alchemy-workbench.awb-app .awb-brewing-tools p {
+  margin:0;
+  line-height:1.5;
+  font-size:12px;
+  color:var(--awb-ui-muted);
+}
+.alchemy-workbench.awb-app .awb-brewing-tool-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  align-items:stretch;
+  gap:8px;
+}
+.alchemy-workbench.awb-app .awb-brewing-tool-grid label {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:44px;
+  padding:9px 10px;
+  color:var(--awb-ui-text);
+  background:var(--awb-ui-panel);
+  border:1px solid var(--awb-ui-border-subtle);
+  border-radius:6px;
+  font-size:12px;
+  cursor:pointer;
+  overflow-wrap:anywhere;
+}
+.alchemy-workbench.awb-app .awb-brewing-tool-grid label:has(input:checked) {
+  background:var(--awb-ui-selected);
+  border-color:var(--awb-ui-accent);
+}
+.alchemy-workbench.awb-app .awb-brewing-tool-grid input[type="checkbox"] {
+  flex:0 0 17px;
+  width:17px;
+  height:17px;
+  margin:0;
+  accent-color:var(--awb-ui-accent);
+}
+.alchemy-workbench.awb-app .awb-brew-tool-selector {
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  margin:7px 0 10px;
+  padding:12px;
+  border:1px solid var(--awb-ui-border-subtle);
+  background:var(--awb-ui-panel-alt);
+  border-radius:7px;
+  color:var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-brew-tool-selector > span {
+  font-size:12px;
+  font-weight:650;
+  color:var(--awb-ui-heading);
+}
+.alchemy-workbench.awb-app .awb-brew-tool-selector select {
+  width:100%;
+  min-width:0;
+  min-height:38px;
+  background:var(--awb-ui-field)!important;
+  border:1px solid var(--awb-ui-border)!important;
+  color:var(--awb-ui-text)!important;
+}
+@media(max-width:720px) {
+  .alchemy-workbench.awb-app .awb-brewing-tool-grid {grid-template-columns:minmax(0,1fr);}
+}

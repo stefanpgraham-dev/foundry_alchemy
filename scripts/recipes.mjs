@@ -1,5 +1,6 @@
 /* Pure world-recipe model; no Foundry globals or mutations. */
 import {KEYS,DC,HOURS,recipeTier,planRecipe,maximumCraftableBatch} from './engine.mjs';
+import {brewingToolsForRecipe} from './recipe-tools.mjs';
 
 const has=Object.prototype.hasOwnProperty;
 const validId=id=>typeof id==='string'&&/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,95}$/.test(id);
@@ -35,7 +36,7 @@ export function validateRecipe(raw,{allowMissingOutput=false}={}){
   if(hoursOverride!==null&&(!Number.isFinite(hoursOverride)||hoursOverride<0.25||hoursOverride>72||Math.round(hoursOverride*4)!==hoursOverride*4))
     throw Error('Override brewing time must be a quarter-hour increment between 0.25 and 72 hours.');
   const outputName=String(raw.outputName??(outputUuid?name:'')).trim().slice(0,120);
-  return {id:raw.id,name,cost,outputUuid,outputName,source,enabled:raw.enabled!==false,dcOverride,hoursOverride};
+  return {id:raw.id,name,cost,outputUuid,outputName,source,enabled:raw.enabled!==false,dcOverride,hoursOverride,brewingTools:brewingToolsForRecipe(raw)};
 }
 
 export function validateLibrary(entries,{allowMissingOutput=false,max=500}={}){
@@ -48,9 +49,16 @@ export function validateLibrary(entries,{allowMissingOutput=false,max=500}={}){
   }
   return valid;
 }
+/** Upgrade older world formulas without overwriting their ingredients, outputs,
+ * recipe-specific overrides or previously configured tool choices. */
+export function migrateRecipeTools(entries){
+ const validated=validateLibrary(entries,{allowMissingOutput:true});
+ const changed=entries.some((r,i)=>JSON.stringify(r)!==JSON.stringify(validated[i]));
+ return {recipes:validated,changed};
+}
 export function seedDefaults(defaults,outputMappings={}){
   return validateLibrary(defaults.map(r=>({...r,source:'default',enabled:true,
-    outputUuid:outputMappings[r.id]||'',outputName:r.name,dcOverride:null,hoursOverride:null
+    outputUuid:outputMappings[r.id]||'',outputName:r.name,dcOverride:null,hoursOverride:null,brewingTools:brewingToolsForRecipe(r)
   })),{allowMissingOutput:true});
 }
 /** Restore an original formula without breaking the world's output Item mapping. */
@@ -58,7 +66,7 @@ export function restoreDefault(current,defaults){
   const original=defaults.find(r=>r.id===current.id);
   if(!original)throw Error('This is a custom recipe; no bundled default exists.');
   return validateRecipe({...original,source:'default',enabled:true,
-    outputUuid:current.outputUuid||'',outputName:current.outputName||current.name,dcOverride:null,hoursOverride:null},{allowMissingOutput:true});
+    outputUuid:current.outputUuid||'',outputName:current.outputName||current.name,dcOverride:null,hoursOverride:null,brewingTools:brewingToolsForRecipe(original)},{allowMissingOutput:true});
 }
 export function importMissingDefaults(current,defaults){
   const seen=new Set(current.map(r=>r.id));

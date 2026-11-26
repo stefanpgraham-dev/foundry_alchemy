@@ -5,6 +5,7 @@ import path from 'node:path';
 import {TIERS,COLOURS,KEYS,recipeTier,DC,HOURS,requirements,planRecipe,planRefine,percentageYield,chanceSucceeds,assertQty,classifyHerbs,maximumCraftableBatch,availableRefinementTargets} from '../scripts/engine.mjs';
 import {getQty,planExtract,planDowngrade,applyInventory,identity,findMatchedInventory,inventoryAudit,markActorInventory} from '../scripts/inventory.mjs';
 import {brewingEligibility,isAlchemistSupplies,rollAlchemyToolCheck,naturalD20Result} from '../scripts/eligibility.mjs';
+import {BREW_TOOL_IDS,brewingToolsForRecipe} from '../scripts/recipe-tools.mjs';
 import {captureWorkbenchViewport,restoreWorkbenchViewport} from '../scripts/viewport.mjs';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const recipes=JSON.parse(fs.readFileSync(path.join(root,'data/recipes.json'),'utf8'));
@@ -21,6 +22,7 @@ check(KEYS.length===9 && TIERS.length===3 && COLOURS.length===3,'nine reagent ki
 for(const r of recipes){
  check(Object.keys(r.cost).every(k=>KEYS.includes(k)&&Number.isSafeInteger(r.cost[k])&&r.cost[k]>0),`valid recipe ${r.name}`);
  check(DC[recipeTier(r)]&&HOURS[recipeTier(r)],`tier for ${r.name}`);
+ check(brewingToolsForRecipe(r).length>0&&brewingToolsForRecipe(r).every(id=>BREW_TOOL_IDS.includes(id)),`valid brew tools for ${r.name}`);
 }
 for(const h of herbs)check(h.reagents.length>0&&h.reagents.every(k=>KEYS.includes(k)),`herb ${h.name} has valid properties`);
 check(classifyHerbs(herbs).length===0,'world catalogue has no tier anomalies');
@@ -184,12 +186,13 @@ const mismatched={...mappedCopies,reagents:{common_curative:'Item.another-world-
 check(!identity(copied,'Item.another-world-item','common_curative'),'old category source flag must not impersonate an unrelated reagent template');
 check(inventoryAudit(actorCopied,{...mappedCopies,reagents:{}},herbs).unmapped.length===1,'inventory audit identifies unmatched copies');
 const {AlchemyWorkbench}=await import('../scripts/workbench.mjs');
-const uiServices={recipes:startupLibrary.recipes,defaultRecipes:recipes,herbs,mappings:()=>mappedCopies,rules:()=>startupRules,saveRules:async()=>0,submit:async()=>'',saveMappings:async()=>0,saveRecipes:async()=>0,pending:async()=>null,brewingEligibility:()=>({ok:true,errors:[]}),directories:()=>({herbFolderId:'',reagentFolderId:'',includeSubfolders:true}),directoryReport:()=>({issues:[]})};
+const uiServices={recipes:startupLibrary.recipes,defaultRecipes:recipes,herbs,mappings:()=>mappedCopies,rules:()=>startupRules,saveRules:async()=>0,submit:async()=>'',saveMappings:async()=>0,saveRecipes:async()=>0,pending:async()=>null,brewingEligibility:()=>({ok:true,errors:[],eligible:[{id:'alchemist',label:"Alchemist's Supplies"}]}),directories:()=>({herbFolderId:'',reagentFolderId:'',includeSubfolders:true}),directoryReport:()=>({issues:[]})};
 game.user={id:'gm',isGM:true};
 const panel=new AlchemyWorkbench(actorCopied,uiServices);
 const html=await panel._renderHTML();
 check(html.includes('Potion of Healing')&&!html.includes('Potion of Greater Healing'),'workbench hides unavailable recipes by default');
 check(html.includes('Max 2'),'workbench displays max craftable batch');
+check(html.includes('data-brew-tool')&&html.includes('Alchemist'),'brew interface offers an eligible kit');
 check(!html.includes('<select name="recipe"'),'workbench uses cards rather than recipe dropdown');
 const rareItem=new Item('rare-ui','Rare Curative Reagent','rare_curative',1);rareItem.img=worldReagent.img;
 rareItem.flags['alchemy-workbench'].sourceUuid='Item.rare_curative';
@@ -205,6 +208,7 @@ editingPanel.tab='gm';editingPanel.gmKind='recipes';
 const editHtml=await editingPanel._renderHTML();
 check(editHtml.includes('data-recipe-drop="output"')&&editHtml.includes('data-recipe-drop="reagent"'),'recipe editor includes Item drop zones');
 check(editHtml.includes('data-action="gm-recipe-save"'),'GM can save edited recipes');
+check(editHtml.includes('data-recipe-tool="alchemist"')&&editHtml.includes('data-recipe-tool="herb"')&&editHtml.includes('data-recipe-tool="pois"'),'GM recipe setup permits all three tools');
 check(editHtml.includes('Import Missing Defaults')&&editHtml.includes('Export JSON'),'recipe library supports reimport and JSON export');
 const rulesPanel=new AlchemyWorkbench(actorCopied,uiServices);
 rulesPanel.tab='gm';rulesPanel.gmKind='rules';
@@ -360,6 +364,56 @@ check(reply.ok===true&&postedRolls.length===5,'failure then one passing follow-u
 check(actorPartial.items.contents.some(x=>x.name==='Potion of Healing'&&getQty(x)===1),'partial yield 1.5 rounded by d100 70 => one potion');
 check(!pendingRecords.length,'single follow-up success does not create pending job');
 console.log('Critical and partial brewing mocked workflows passed.');
+// GM-authoritative test: Herbalism Kit can brew Healing without Alchemist Supplies.
+const herbBrewer=equipBrewer(new Actor(new Item('hc','Common Curative','common_curative',3)));
+herbBrewer.testUserPermission=()=>true;
+herbBrewer.items.contents=herbBrewer.items.contents.filter(i=>i.type!=='tool');
+herbBrewer.system.tools.alchemist={value:0};
+herbBrewer.system.tools.herb={prof:{multiplier:1,hasProficiency:true}};
+const kit=new Item('kit','Herbalism Kit',null,1);kit.type='tool';kit.system.type={baseItem:'herb'};
+herbBrewer.items.contents.push(kit);
+game.actors.get=id=>id==='test'?herbBrewer:null;
+nativeCalls=[];postedRolls=[];rollValues=[16];
+socketHandler({type:'request',nonce:'herb-brew',mode:'brew',actorId:'test',
+ recipeId:'potion-of-healing',batch:1,selectedIds:['hc'],change:'highest',toolId:'herb'},'player');
+reply=await eventuallyResponse();
+check(reply.ok&&nativeCalls[0].config.tool==='herb','GM rolls native Herbalism Kit rather than alchemist');
+check(herbBrewer.items.contents.some(x=>x.name==='Potion of Healing'),'Herbalism Kit brewing produces a potion');
+
+// Restrict poison-only recipes to a proficient, carried Poisoner's Kit.
+mappings.reagents.common_poisonous='Item.common_poisonous';
+const poisonBrewer=equipBrewer(new Actor(new Item('pc','Common Poisonous','common_poisonous',3)));
+poisonBrewer.testUserPermission=()=>true;
+poisonBrewer.system.tools.pois={prof:{multiplier:1,hasProficiency:true}};
+const pKit=new Item('poison-kit',"Poisoner's Kit",null,1);pKit.type='tool';pKit.system.type={baseItem:'pois'};
+poisonBrewer.items.contents.push(pKit);
+game.actors.get=id=>id==='test'?poisonBrewer:null;
+nativeCalls=[];postedRolls=[];rollValues=[];
+socketHandler({type:'request',nonce:'wrong-kit',mode:'brew',actorId:'test',recipeId:'basic-poison',
+ batch:1,selectedIds:['pc'],change:'highest',toolId:'alchemist'},'player');
+denied=await eventuallyResponse();
+check(!denied.ok&&/not permitted/.test(denied.message),'GM refuses non-approved kit');
+check(getQty(poisonBrewer.items.get('pc'))===3&&postedRolls.length===0,'denied tool never spends reagents');
+rollValues=[16];
+socketHandler({type:'request',nonce:'poison-kit',mode:'brew',actorId:'test',recipeId:'basic-poison',
+ batch:1,selectedIds:['pc'],change:'highest',toolId:'pois'},'player');
+reply=await eventuallyResponse();
+check(reply.ok&&nativeCalls.at(-1).config.tool==='pois','GM uses native Poisoner Kit roll');
+check(poisonBrewer.items.contents.some(x=>x.name==='Basic Poison'),'correct kit produces poison');
+
+// Initial and independent follow-ups use the exact same selected tool.
+const followBrewer=equipBrewer(new Actor(new Item('fc','Common Curative','common_curative',3)));
+followBrewer.testUserPermission=()=>true;
+followBrewer.system.tools.herb={prof:{multiplier:1,hasProficiency:true}};
+const hKit=new Item('follow-kit','Herbalism Kit',null,1);hKit.type='tool';hKit.system.type={baseItem:'herb'};
+followBrewer.items.contents.push(hKit);
+game.actors.get=id=>id==='test'?followBrewer:null;
+nativeCalls=[];postedRolls=[];rollValues=[2,2,2];
+socketHandler({type:'request',nonce:'follow-kit',mode:'brew',actorId:'test',
+ recipeId:'potion-of-healing',batch:1,selectedIds:['fc'],change:'highest',toolId:'herb'},'player');
+reply=await eventuallyResponse();
+check(reply.ok&&nativeCalls.length===3&&nativeCalls.every(x=>x.config.tool==='herb'),'all follow-ups use chosen kit');
+
 // Real socket branches for herb extraction and reagent downgrade (no rolls).
 mappings.herbs={'world-CaveMoss':'Item.CaveMoss'};
 mappings.herbNames={'world-CaveMoss':'Cave Moss'};

@@ -4,28 +4,44 @@
     "name": "Potion of Healing",
     "cost": {
       "common_curative": 3
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "herb"
+    ]
   },
   {
     "id": "potion-of-greater-healing",
     "name": "Potion of Greater Healing",
     "cost": {
       "rare_curative": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "herb"
+    ]
   },
   {
     "id": "potion-of-superior-healing",
     "name": "Potion of Superior Healing",
     "cost": {
       "exotic_curative": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "herb"
+    ]
   },
   {
     "id": "potion-of-supreme-healing",
     "name": "Potion of Supreme Healing",
     "cost": {
       "exotic_curative": 3
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "herb"
+    ]
   },
   {
     "id": "philtre-of-love",
@@ -33,7 +49,11 @@
     "cost": {
       "common_curative": 3,
       "common_reactive": 2
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "herb"
+    ]
   },
   {
     "id": "potion-of-poison",
@@ -42,7 +62,11 @@
       "common_curative": 1,
       "common_poisonous": 3,
       "common_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "pois"
+    ]
   },
   {
     "id": "potion-of-climbing",
@@ -51,7 +75,11 @@
       "common_curative": 1,
       "common_poisonous": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "herb"
+    ]
   },
   {
     "id": "potion-of-heroism",
@@ -59,7 +87,11 @@
     "cost": {
       "rare_curative": 1,
       "common_reactive": 2
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "herb"
+    ]
   },
   {
     "id": "potion-of-invisibility",
@@ -67,7 +99,10 @@
     "cost": {
       "rare_curative": 2,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-mind-reading",
@@ -76,7 +111,10 @@
       "common_curative": 1,
       "common_poisonous": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-water-breathing",
@@ -85,7 +123,11 @@
       "rare_curative": 1,
       "rare_poisonous": 1,
       "common_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "herb"
+    ]
   },
   {
     "id": "potion-of-animal-friendship",
@@ -93,7 +135,11 @@
     "cost": {
       "rare_curative": 1,
       "common_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "herb"
+    ]
   },
   {
     "id": "potion-of-diminution",
@@ -101,7 +147,10 @@
     "cost": {
       "rare_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-growth",
@@ -109,7 +158,10 @@
     "cost": {
       "rare_curative": 2,
       "common_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-gaseous-form",
@@ -118,7 +170,10 @@
       "common_curative": 2,
       "common_poisonous": 2,
       "rare_reactive": 2
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-acid-resistance",
@@ -126,7 +181,10 @@
     "cost": {
       "rare_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-cold-resistance",
@@ -134,7 +192,10 @@
     "cost": {
       "rare_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-fire-resistance",
@@ -142,7 +203,10 @@
     "cost": {
       "rare_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-force-resistance",
@@ -150,7 +214,10 @@
     "cost": {
       "rare_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-lightning-resistance",
@@ -158,7 +225,10 @@
     "cost": {
       "rare_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-necrotic-resistance",
@@ -166,7 +236,10 @@
     "cost": {
       "rare_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-poison-resistance",
@@ -174,7 +247,11 @@
     "cost": {
       "rare_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "herb"
+    ]
   },
   {
     "id": "potion-of-psychic-resistance",
@@ -182,7 +259,10 @@
     "cost": {
       "rare_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-radiant-resistance",
@@ -190,7 +270,10 @@
     "cost": {
       "rare_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-thunder-resistance",
@@ -198,7 +281,10 @@
     "cost": {
       "rare_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-speed",
@@ -207,7 +293,10 @@
       "rare_curative": 1,
       "rare_poisonous": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-flying",
@@ -215,7 +304,10 @@
     "cost": {
       "common_curative": 2,
       "exotic_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "potion-of-clairvoyance",
@@ -223,7 +315,10 @@
     "cost": {
       "rare_poisonous": 1,
       "rare_reactive": 2
-    }
+    },
+    "brewingTools": [
+      "alchemist"
+    ]
   },
   {
     "id": "antitoxin",
@@ -231,7 +326,12 @@
     "cost": {
       "common_curative": 2,
       "common_poisonous": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "herb",
+      "pois"
+    ]
   },
   {
     "id": "acid",
@@ -239,14 +339,21 @@
     "cost": {
       "common_poisonous": 2,
       "common_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "pois"
+    ]
   },
   {
     "id": "basic-poison",
     "name": "Basic Poison",
     "cost": {
       "common_poisonous": 3
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "truth-serum",
@@ -254,7 +361,11 @@
     "cost": {
       "common_curative": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "alchemist",
+      "pois"
+    ]
   },
   {
     "id": "assassins-blood",
@@ -262,7 +373,10 @@
     "cost": {
       "rare_poisonous": 1,
       "common_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "burnt-othur-fumes",
@@ -270,7 +384,10 @@
     "cost": {
       "exotic_poisonous": 1,
       "common_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "carrion-crawler-mucus",
@@ -278,7 +395,10 @@
     "cost": {
       "rare_poisonous": 1,
       "common_reactive": 2
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "drow-poison",
@@ -286,7 +406,10 @@
     "cost": {
       "rare_poisonous": 1,
       "common_reactive": 2
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "essence-of-ether",
@@ -294,7 +417,10 @@
     "cost": {
       "rare_poisonous": 2,
       "common_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "malice",
@@ -302,7 +428,10 @@
     "cost": {
       "rare_poisonous": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "midnight-tears",
@@ -310,7 +439,10 @@
     "cost": {
       "exotic_poisonous": 3,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "oil-of-taggit",
@@ -318,7 +450,10 @@
     "cost": {
       "rare_poisonous": 2,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "pale-tincture",
@@ -326,7 +461,10 @@
     "cost": {
       "rare_poisonous": 1,
       "rare_reactive": 2
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "purple-worm-poison",
@@ -334,7 +472,10 @@
     "cost": {
       "exotic_poisonous": 3,
       "exotic_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "torpor",
@@ -342,7 +483,10 @@
     "cost": {
       "exotic_poisonous": 1,
       "rare_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   },
   {
     "id": "wyvern-poison",
@@ -350,6 +494,9 @@
     "cost": {
       "exotic_poisonous": 2,
       "exotic_reactive": 1
-    }
+    },
+    "brewingTools": [
+      "pois"
+    ]
   }
 ]
