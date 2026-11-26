@@ -54,6 +54,10 @@ export function directoryView(app){
  if(!game.user.isGM)return '<div class="awb-alert awb-alert-warn">Only a GM can configure the world.</div>';
  const current=normalizeDirectoryConfig(config(app)),r=report(app),map=mappings(app),kind=app.gmKind;
  const issues=r.issues||[];
+ const legacyPotionAvailable=itemPacks(game.packs).some(pack=>pack.collection==='dnd5e.items');
+ const suggestLegacy=legacyPotionAvailable&&current.potionPackIds.includes('dnd5e.equipment24')&&!current.potionPackIds.includes('dnd5e.items');
+ const legacyHint=suggestLegacy?'<small>The 2024 equipment pack includes a generic Potion of Resistance rather than each damage type. To link the separate resistance recipes, add the legacy SRD Item pack as a second potion source.</small>'+
+  button('gm-add-legacy-potions','Add SRD 5.1 Items as potion source'):'';
  const foldersBar='<div class="awb-folder-switches">'+
   '<div><strong>Herb sources</strong><small>World Item folder (optional)</small><span>'+esc(folderName(current.herbFolderId))+'</span>'+
   '<div class="awb-source-buttons">'+button('gm-pick-herbs','Pick herb folder')+
@@ -69,7 +73,7 @@ export function directoryView(app){
   '<div class="awb-source-buttons">'+button('gm-pick-potions','Pick potion folder')+
   (current.potionFolderId?button('gm-clear-potions','Clear folder'):'')+'</div>'+
   '<small>Item compendiums (optional)</small><span>'+esc(packNames(current.potionPackIds))+'</span>'+
-  button('gm-pick-potion-packs','Choose potion compendiums')+'</div>'+
+  button('gm-pick-potion-packs','Choose potion compendiums')+legacyHint+'</div>'+
   '</div>';
  const recursive='<label class="awb-directory-recursive"><input type="checkbox" data-directory-recursive '+(current.includeSubfolders?'checked':'')+'> Include subfolders recursively</label>';
  const rarityNames={common:'Common',uncommon:'Uncommon',rare:'Rare',veryrare:'Very Rare',legendary:'Legendary',artifact:'Artifact'};
@@ -166,6 +170,13 @@ export async function directoryAction(app,action,target){
   const key=action==='gm-clear-herbs'?'herbFolderId':action==='gm-clear-reagents'?'reagentFolderId':'potionFolderId';
   app.directoryDraft={...normalizeDirectoryConfig(config(app)),[key]:''};
   return true;
+ }
+ if(action==='gm-add-legacy-potions'){
+  if(!itemPacks(game.packs).some(pack=>pack.collection==='dnd5e.items'))
+   throw new Error('The SRD 5.1 Items compendium is not available.');
+  const cfg=normalizeDirectoryConfig(config(app));
+  app.directoryDraft={...cfg,potionPackIds:[...new Set([...cfg.potionPackIds,'dnd5e.items'])]};
+  return true; // Staged; GM must review Refresh from sources before applying.
  }
  if(['gm-pick-herb-packs','gm-pick-reagent-packs','gm-pick-potion-packs'].includes(action)){
   const isHerb=action==='gm-pick-herb-packs',isPotion=action==='gm-pick-potion-packs';
