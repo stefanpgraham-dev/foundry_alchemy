@@ -95,7 +95,8 @@ export function directoryView(app){
    '<div class="awb-folder-summary">'+
    '<span><strong>'+Number(r.validHerbs||0)+'</strong> herbs imported</span>'+
    '<span><strong>'+Number(r.mappedReagents||0)+'/9</strong> reagents mapped</span>'+
-   '<span><strong>'+Number(r.mappedPotions||0)+'</strong> recipe outputs mapped</span>'+
+   '<span><strong>'+Number(r.mappedPotions||0)+'/'+app.services.recipes.length+'</strong> recipe outputs linked</span>'+
+   '<span><strong>'+Number(r.missingPotions||0)+'</strong> unlinked recipes</span>'+ 
    '<span><strong>'+issues.length+'</strong> notices</span></div>'+
    '<div class="awb-bottom"><small>Refresh never deletes Items from any character inventory.</small>'+button('gm-refresh','Refresh from sources','class="awb-primary"')+'</div>'+
    '<h3>Last scan</h3><p class="awb-muted">'+esc(r.scannedAt||'No folder scan has been performed')+
@@ -215,7 +216,11 @@ async function refreshWithConfirmation(app){
  const shortIssues=r.issues.slice(0,12).map(i=>'<li><strong>'+esc(i.name)+'</strong>: '+esc(i.problem)+'</li>').join('');
  const issueText=r.issues.length?'<h3>Validation notices ('+r.issues.length+')</h3><ul>'+shortIssues+'</ul>'+(r.issues.length>12?'<p>Additional issues will appear in GM validation.</p>':''):'<p>No validation notices.</p>';
  const content='<div class="awb awb-directory-preview"><p><strong>'+r.validHerbs+' valid herbs</strong> from '+r.herbItems+' Items; <strong>'+r.mappedReagents+'/9 reagents</strong> from '+r.reagentItems+' Items.</p>'+
-  '<p><strong>'+r.mappedPotions+' recipe outputs mapped</strong> from '+r.potionItems+' selected potion Items.</p>'+
+  '<p><strong>'+r.mappedPotions+'/'+app.services.recipes.length+' recipe outputs linked</strong> ('+r.automaticPotions+
+   ' automatically matched, '+r.manualPotions+' explicitly linked, '+r.retainedPotions+' retained) from '+
+   r.potionItems+' alchemy Items in '+r.potionSourceItems+' scanned source Items.</p>'+
+  '<p><strong>'+r.missingPotions+' unlinked</strong>; '+r.ambiguousPotions+
+   ' ambiguous. A single equipment compendium may not include all 44 recipe-specific potions or poisons. Missing recipes are never assigned an unrelated Item.</p>'+
   '<p>Changes: '+r.added.length+' added, '+r.changed.length+' updated, '+r.removed.length+' removed.</p>'+
   '<p>Each herb must have at least one valid linked reagent Item. Invalid herbs will be excluded until corrected.</p>'+
   issueText+'<p>Apply this world/compendium catalogue? Existing character inventory Items are not deleted.</p></div>';
@@ -226,5 +231,5 @@ async function refreshWithConfirmation(app){
  if(!accepted)return;
  const result=await app.services.refreshDirectories(proposed);
  app.directoryDraft=null;app.mappingDraft=null;
- app.notice={text:'Updated '+result.validHerbs+' herbs, '+result.mappedReagents+'/9 reagents and '+result.mappedPotions+' potion outputs. '+result.issues.length+' validation notice(s).',kind:result.issues.length?'warn':'good'};
+ app.notice={text:'Updated '+result.validHerbs+' herbs, '+result.mappedReagents+'/9 reagents and '+result.mappedPotions+'/'+app.services.recipes.length+' recipe output links ('+result.missingPotions+' unlinked).',kind:result.missingPotions?'warn':'good'};
 }
