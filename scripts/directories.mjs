@@ -268,7 +268,7 @@ export function scanDirectories(world,config,previous={},sources={}){
   if(key)candidates.get(key).push(material);
   else issues.push(issue('reagent',material,'Unclassified reagent Item. Map it manually or give it a standard reagent name.','warning'));
  }
- const reagentMappings={},reagentNames={},reagentAliases={},used=new Set();
+ const reagentMappings={},reagentNames={},reagentAliases={},reagentImages={},used=new Set();
  for(const key of KEYS){
   const found=candidates.get(key);
   const manualUuid=overrides[key];
@@ -286,6 +286,7 @@ export function scanDirectories(world,config,previous={},sources={}){
    used.add(chosen.uuid);
    reagentMappings[key]=chosen.uuid;
    reagentNames[key]=chosen.name;
+   reagentImages[key]=chosen.img||'';
    reagentAliases[key]=[...new Set([...
     sourceAliases(chosen),
     ...found.flatMap(sourceAliases)
@@ -393,7 +394,7 @@ export function scanDirectories(world,config,previous={},sources={}){
  const changed=herbs.filter(h=>oldById.has(h.id)&&!equalHerb(h,oldById.get(h.id))).map(h=>h.name);
  const removed=(previous.herbs||[]).filter(h=>!newById.has(h.id)).map(h=>h.name);
  return{
-  herbs,herbMappings,herbNames,herbAliases,reagentMappings,reagentNames,reagentAliases,
+  herbs,herbMappings,herbNames,herbAliases,reagentMappings,reagentNames,reagentAliases,reagentImages,
   potionCatalog:matchedPotions.catalog,potionMappings:matchedPotions.outputs,
    potionRecipeResults:matchedPotions.recipeResults,
   autoPotionMappings:matchedPotions.autoOutputs,updatedRecipes:matchedPotions.updatedRecipes,
