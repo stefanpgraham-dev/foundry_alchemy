@@ -31,7 +31,13 @@ function recipeList(app){
 function editor(app){
  const r=app.recipeDraft;
  if(!r)return '<p class="awb-empty">Select a recipe or drop a potion Item to create one.</p>';
- const tier=recipeTier(r),maps=app.services.mappings();
+ const tier=recipeTier(r),maps=app.services.mappings(),potions=app.services.potions||[];
+ const potionPicker=potions.length?
+  '<label class="awb-field"><span>Choose from Potion Sources ('+potions.length+' Items)</span><select data-recipe-output-select>'+
+   '<option value="">Choose a potion Item…</option>'+
+   potions.map(item=>'<option value="'+esc(item.uuid)+'" '+(item.uuid===r.outputUuid?'selected':'')+'>'+
+    esc(item.name)+' — '+esc(item.uuid)+'</option>').join('')+'</select></label>':
+  '<p class="awb-muted">Configure a Potion Source under Directories and refresh, or drag a World/compendium Item into the output above.</p>';
  const ingredientRows=Object.entries(r.cost).map(([key,qty])=>
   '<div class="awb-recipe-ingredient"><img class="awb-art" src="'+esc(app._templateImage(maps.reagents?.[key]))+'" alt="">'+
   '<span><strong>'+esc(label(key))+'</strong><small>Per potion</small></span>'+
@@ -60,7 +66,7 @@ function editor(app){
   '<label class="awb-field"><span>Recipe name</span><input data-recipe-name maxlength="120" value="'+esc(r.name)+'"></label>'+
   '<h3>Potion output</h3><div class="awb-recipe-drop awb-recipe-output" data-recipe-drop="output">'+
   '<img class="awb-art awb-featured" src="'+esc(outputImage(app,r))+'" alt=""><div><strong>'+
-  (r.outputUuid?esc(r.outputName||'Linked potion Item')+' — drop to change':'Drop potion Item here')+'</strong><small>'+esc(r.outputUuid||'Preserve Foundry activities and effects')+'</small></div></div>'+
+  (r.outputUuid?esc(r.outputName||'Linked potion Item')+' — drop to change':'Drop potion Item here')+'</strong><small>'+esc(r.outputUuid||'Preserve Foundry activities and effects')+'</small></div></div>'+potionPicker+
   toolChoices+'<h3>Required reagents per potion</h3><div class="awb-recipe-ingredient-list">'+ingredientRows+'</div>'+
   '<div class="awb-recipe-drop" data-recipe-drop="reagent"><i class="fas fa-flask"></i> Drop reagent Item here</div>'+palette+
   '<div class="awb-recipe-overrides"><label><input data-recipe-enabled type="checkbox" '+(r.enabled?'checked':'')+'> Available to players</label>'+
@@ -135,6 +141,16 @@ export function recipeEditorInput(app,event){
  if(el.matches?.('[data-recipe-filter]')){app.recipeFilter=el.value;void app.render();return true;}
  if(el.matches?.('[data-recipe-sort]')){app.recipeSort=el.value;void app.render();return true;}
  if(el.matches?.('[data-recipe-test-batch]')){app.recipeTestBatch=Number(el.value);return true;}
+ if(el.matches?.('[data-recipe-output-select]')){
+  const item=(app.services.potions||[]).find(x=>x.uuid===el.value);
+  if(!item)return true; // Empty prompt is not an instruction to unlink the Item.
+  syncDraft(app);
+  app.recipeDraft.outputUuid=item.uuid;
+  app.recipeDraft.outputName=item.name;
+  app.recipeDirty=true;app.recipeTestResult=null;
+  void app.render();
+  return true;
+ }
  if(el.matches?.('[data-recipe-name],[data-recipe-qty],[data-recipe-dc],[data-recipe-hours],[data-recipe-enabled],[data-recipe-override-dc],[data-recipe-override-hours],[data-recipe-tool]')){
   syncDraft(app);app.recipeDirty=true;app.recipeTestResult=null;
   if(el.matches('[data-recipe-override-dc],[data-recipe-override-hours]'))void app.render();
