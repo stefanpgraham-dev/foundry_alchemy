@@ -160,7 +160,7 @@ globalThis.fetch=async url=>{
 await import('../scripts/module.mjs');
 check(typeof hooks.init==='function'&&typeof hooks.ready==='function','Foundry startup hooks registered');
 await hooks.init();
-check(registered.length===7,'world rules, recipe, directory, catalogue, report, mappings and pending settings registered');
+check(registered.length===8,'world rules, recipe, directory, herb/potion catalogues, report, mappings and pending settings registered');
 check(typeof moduleEntry.api.open==='function'&&typeof moduleEntry.api.setup==='function','UI API available');
 game.user={id:'gm',isGM:true};
 await hooks.ready();
