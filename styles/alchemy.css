@@ -168,6 +168,7 @@
 .awb-library-toolbar>button,.awb-folder-switches button{flex:0 0 auto;border:1px solid #756b58;border-radius:6px;background:#454039;color:#f1e5d2;padding:8px 11px;cursor:pointer}
 .awb-folder-switches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}
 .awb-folder-switches>div{display:flex;flex-direction:column;gap:8px;min-width:0;padding:15px;background:#25282a;border:1px solid #5a554b;border-radius:8px}
+.awb-folder-switches>div:nth-child(3){grid-column:1/-1}
 .awb-folder-switches strong{color:#ead4a3}
 .awb-folder-switches span{overflow-wrap:anywhere;font-size:13px;color:#d0d0ce}
 .awb-folder-switches button{align-self:flex-start}
