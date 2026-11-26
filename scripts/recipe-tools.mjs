@@ -9,9 +9,9 @@ export const BREW_TOOL_IDS=Object.freeze(Object.keys(BREW_TOOLS));
 const BOTH=['alchemist','herb'];
 const ALCHEMIST=['alchemist'];
 const POISON=['pois'];
-const TOXIN=['pois','alchemist'];
+const TOXIN=['alchemist','pois'];
 const ALL=['alchemist','herb','pois'];
-const HERBAL=['herb','alchemist'];
+const HERBAL=['alchemist','herb'];
 const defaults=Object.freeze({
  'potion-of-healing':BOTH,
  'potion-of-greater-healing':BOTH,
