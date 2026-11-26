@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.5.2 — recipe-linked brewing tool alternatives and proficiency checks.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.5.3 — linked potion sources and recipe output matching.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -20,6 +20,14 @@ Or extract the `alchemy-workbench` folder from the release ZIP to `Data/modules/
 - Inventory shows all nine reagent balances and recognised herbs. It also lists likely unmatched herbs/reagents with suggestions for the GM to review mappings.
 - A GM must be connected when players craft. The active GM validates and executes inventory transactions and rolls. Dice So Nice is optional and integrates via normal Foundry Roll chat messages.
 - When both follow-up checks succeed after an initial failure, the player is prompted **after those dice have rolled** to choose full batch at +50% brewing time or partial batch immediately.
+
+## v0.5.3 — potion source mapping
+
+Under **Alchemy → GM Setup → Directories**, a third source, **Potion Sources**, can use a World Item folder, one or more Item compendiums, or both. Herb and reagent sources remain required; potion sources are optional for existing worlds. Folder recursion applies to all three categories.
+
+Choose the source and **Refresh from sources**. A recipe without an explicit output link is automatically mapped when exactly one selected potion Item has the same name (case/punctuation-insensitive). A World Item imported from a selected compendium original is preferred over its original. Different same-named Items are reported as ambiguous and not silently chosen. Previously configured manual recipe-output links remain authoritative. Auto-mapped links can follow a replacement Item on a later refresh.
+
+Under **GM Setup → Recipes**, each recipe's Potion Output includes a picker populated from the saved Potion Sources catalogue. Use this when names differ, or continue dragging a World/compendium Item into the output slot. Brewing copies the mapped source Item's activities and effects rather than a generic placeholder. Scanning never deletes items from actor inventories, and existing pending brews retain their saved output snapshots. Back up your Foundry world before updating and verify the new picker inside Foundry v14.
 
 ## GM setup — World Items and compendium support (v0.4.3)
 
