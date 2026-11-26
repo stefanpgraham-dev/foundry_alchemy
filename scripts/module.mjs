@@ -214,7 +214,7 @@ async function refreshDirectories(config){
  const hasPotionSource=Boolean(selection.potionFolderId||selection.potionPackIds.length);
  const nextRecipes=hasPotionSource?validateLibrary(scan.updatedRecipes,{allowMissingOutput:true}):recipes;
  const nextMap={...oldMap,
-  reagents:scan.reagentMappings,reagentNames:scan.reagentNames,reagentAliases:scan.reagentAliases,
+  reagents:scan.reagentMappings,reagentNames:scan.reagentNames,reagentAliases:scan.reagentAliases,reagentImages:scan.reagentImages,
   herbs:scan.herbMappings,herbNames:scan.herbNames,herbAliases:scan.herbAliases,
   ...(hasPotionSource?{outputs:scan.potionMappings,autoOutputs:scan.autoPotionMappings}:{})
  };
