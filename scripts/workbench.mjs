@@ -6,7 +6,7 @@ import {recipeEditorInput,recipeEditorImport,recipeEditorDrop} from './recipe-ui
 import {brewToolLabel,brewToolSummary} from './recipe-tools.mjs';
 import {rulesEditorInput} from './rules-ui.mjs';
 import {recipeDC,recipeHours} from './recipes.mjs';
-import {templateImage,FALLBACK_ITEM_IMAGE} from './item-images.mjs';
+import {templateImage,hydrateTemplateImages,FALLBACK_ITEM_IMAGE} from './item-images.mjs';
 
 const esc=value=>foundry.utils.escapeHTML(String(value??''));
 const label=key=>String(key).replaceAll('_',' ').replace(/\b\w/g,x=>x.toUpperCase());
@@ -40,8 +40,42 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
      this.rulesDraft=null;this.rulesDirty=false;
      this.herbQuery='';this.herbFilter='all';this.herbSort='name';
     this.busy=false;this.notice=null;
+    this._artworkCache=new Map();
+    this._checkedArtwork=new Set();
   }
-  async _renderHTML(){return this._layout();}
+  async _renderHTML(){
+    await this._loadMappedArtwork();
+    return this._layout();
+  }
+  _artworkContext(){
+    return {
+      worldItems:game.items,packs:game.packs,
+      potions:this.services.potions||[],herbs:this.services.herbs||[],
+      mappings:this.services.mappings()
+    };
+  }
+  async _loadMappedArtwork(){
+    if(this.tab!=='brew'&&!(this.tab==='gm'&&this.gmKind==='recipes'))return;
+    const map=this.services.mappings();
+    const uuids=[...new Set([
+      ...this.services.recipes.map(r=>r.outputUuid||map.outputs?.[r.id]),
+      ...Object.values(map.reagents||{})
+    ].filter(uuid=>typeof uuid==='string'&&uuid))];
+    const context=this._artworkContext();
+    const missing=uuids.filter(uuid=>!this._artworkCache.has(uuid)&&
+      !this._checkedArtwork.has(uuid)&&templateImage(uuid,context)===FALLBACK_ITEM_IMAGE);
+    if(!missing.length)return;
+    // Exact-UUID lookup of real Items: a recipe's output cannot be confused
+    // with another identically named compendium entry.
+    const results=await hydrateTemplateImages(missing,{
+      ...context,resolveUuid:typeof globalThis.fromUuid==='function'?globalThis.fromUuid:undefined
+    });
+    for(const uuid of missing)this._checkedArtwork.add(uuid);
+    for(const [uuid,img] of results)this._artworkCache.set(uuid,img);
+  }
+  _clearArtworkCache(){
+    this._artworkCache.clear();this._checkedArtwork.clear();
+  }
   _replaceHTML(html,content){
     const editing=this.element?.ownerDocument?.activeElement ?? null;
     const state=captureWorkbenchViewport(content,editing);
@@ -71,11 +105,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     }));
   }
   _templateImage(uuid){
-    return templateImage(uuid,{
-      worldItems:game.items,packs:game.packs,
-      potions:this.services.potions||[],herbs:this.services.herbs||[],
-      mappings:this.services.mappings()
-    });
+    return this._artworkCache.get(uuid)||templateImage(uuid,this._artworkContext());
   }
   _layout(){
     const mapping=this.services.mappings(),reagentRows=this._inventory(),herbRows=this._herbs();
