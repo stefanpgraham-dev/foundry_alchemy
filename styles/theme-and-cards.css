@@ -1125,3 +1125,61 @@ body.theme-light .awb-chat.awb-result,
 @media(max-width:720px) {
   .alchemy-workbench.awb-app .awb-brewing-tool-grid {grid-template-columns:minmax(0,1fr);}
 }
+
+/* v0.5.8 — gathering surfaces share existing dark/light theme variables. */
+.alchemy-workbench.awb-app .awb-gather-layout .awb-panel,
+.alchemy-workbench.awb-app .awb-gather-setup {
+ min-width:0;color:var(--awb-ui-text);background:var(--awb-ui-panel);
+}
+.alchemy-workbench.awb-app .awb-gather-stats {
+ display:flex;gap:9px;flex-wrap:wrap;padding:10px 0;
+}
+.alchemy-workbench.awb-app .awb-gather-stats span,
+.alchemy-workbench.awb-app .awb-gather-steps p {
+ padding:8px 10px;margin:0;border:1px solid var(--awb-ui-border-subtle);
+ background:var(--awb-ui-panel-alt);border-radius:6px;color:var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-gather-steps {
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0;
+}
+.alchemy-workbench.awb-app .awb-gather-list {max-height:none;overflow:visible;}
+.alchemy-workbench.awb-app .awb-gather-row,
+.alchemy-workbench.awb-app .awb-gather-weight-row {
+ display:flex;gap:12px;align-items:center;padding:9px;
+ background:var(--awb-ui-panel-alt);border:1px solid var(--awb-ui-border-subtle);
+ border-radius:7px;margin-bottom:6px;color:var(--awb-ui-text);
+}
+.alchemy-workbench.awb-app .awb-gather-row .awb-art,
+.alchemy-workbench.awb-app .awb-gather-weight-row .awb-art {
+ width:46px;height:46px;object-fit:contain;flex:0 0 46px;
+}
+.alchemy-workbench.awb-app .awb-gather-row div,
+.alchemy-workbench.awb-app .awb-gather-weight-row span {
+ min-width:0;flex:1;display:flex;flex-direction:column;gap:3px;
+}
+.alchemy-workbench.awb-app .awb-gather-row small,
+.alchemy-workbench.awb-app .awb-gather-weight-row small {
+ color:var(--awb-ui-muted);white-space:normal;
+}
+.alchemy-workbench.awb-app .awb-gather-row b {white-space:nowrap;color:var(--awb-ui-heading);}
+.alchemy-workbench.awb-app .awb-gather-biome-row {
+ display:grid;grid-template-columns:minmax(0,1fr) 55px 120px;gap:8px;
+ align-items:center;margin-bottom:6px;
+}
+.alchemy-workbench.awb-app .awb-gather-biome-row button.selected {
+ background:var(--awb-ui-selected);border-color:var(--awb-ui-accent);
+}
+.alchemy-workbench.awb-app .awb-gather-biome-row input,
+.alchemy-workbench.awb-app .awb-gather-weight-row input {
+ max-width:65px;color:var(--awb-ui-text);background:var(--awb-ui-field);
+ border:1px solid var(--awb-ui-border);border-radius:5px;
+}
+.alchemy-workbench.awb-app .awb-gather-weight-row label {white-space:nowrap;}
+.alchemy-workbench.awb-app .awb-gather-setup .awb-bottom {
+ gap:12px;align-items:flex-start;flex-wrap:wrap;
+}
+.alchemy-workbench.awb-app .awb-text-warning {color:var(--awb-ui-warn-text);}
+@media(max-width:760px){
+ .alchemy-workbench.awb-app .awb-gather-steps{grid-template-columns:1fr;}
+ .alchemy-workbench.awb-app .awb-gather-biome-row{grid-template-columns:minmax(0,1fr) 45px 100px;}
+}
