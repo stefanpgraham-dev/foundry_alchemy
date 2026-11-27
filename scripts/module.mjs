@@ -4,7 +4,8 @@ import {AlchemyWorkbench} from './workbench.mjs';
 import {scanConfiguredSources,defaultDirectoryConfig,normalizeDirectoryConfig,sourceAliases} from './directories.mjs';
 import {recipeDC,recipeHours,seedDefaults,validateLibrary,migrateRecipeTools} from './recipes.mjs';
 import {brewToolSummary} from './recipe-tools.mjs';
-import {brewingEligibility,selectBrewingTool,rollAlchemyToolCheck,naturalD20Result} from './eligibility.mjs';
+import {brewingEligibility,selectBrewingTool,rollAlchemyToolCheck,naturalD20Result,herbalismEligibility,rollHerbalismGathering} from './eligibility.mjs';
+import {BIOMES,linkBiomeRegistry,biomeTable,weightedPick,gatherYield,validateGatherConfig} from './gathering.mjs';
 import {defaultRules,validateRules,criticalDiceCount,bonusRollFormula,partialRollFormula,extraTimeHours} from './rules.mjs';
 import {macroActors,preferredMacroActor,resolveRequestedActor} from './actor-selection.mjs';
 
@@ -15,8 +16,17 @@ const actors=()=>game.actors.contents.filter(a=>a.testUserPermission(game.user,'
 const macroChoices=()=>macroActors(game.actors.contents,game.user);
 const blankMappings=()=>({reagents:{},herbs:{},reagentAliases:{},herbAliases:{},reagentOverrides:{},outputs:{},autoOutputs:{},outputImages:{},reagentImages:{}});
 const worldRules=()=>validateRules(game.settings.get(MID,'rules')||defaultRules());
+const gatherConfig=()=>validateGatherConfig(game.settings.get(MID,'gatherOverrides')||{});
+const enrichHerbs=items=>linkBiomeRegistry(items,herbRegistry,gatherConfig().herbs);
+async function saveGatherConfig(config){
+ if(!game.user.isGM)throw Error('GM privileges required.');
+ const valid=validateGatherConfig(config);
+ await game.settings.set(MID,'gatherOverrides',valid);
+ herbs=enrichHerbs(herbs);
+ return valid;
+}
 const openWorkbenches=new Set();
-let recipes=[],herbs=[],defaultRecipes=[];
+let recipes=[],herbs=[],defaultRecipes=[],herbRegistry={herbs:[]};
 const locks=new Set(),waiting=new Map(),decisions=new Map();
 const SOCKET=`module.${MID}`;
 const pickGM=()=>game.users.filter(u=>u.active&&u.isGM).sort((a,b)=>a.id.localeCompare(b.id))[0];
@@ -51,6 +61,7 @@ async function selectActor(){
 function workbench(actor){
  const app=new AlchemyWorkbench(actor,{
   get recipes(){return recipes;},get defaultRecipes(){return defaultRecipes;},get herbs(){return herbs;},get potions(){return game.settings.get(MID,'potionCatalog')||[];},mappings:setting,submit:submitAction,saveMappings,saveRecipes,
+  get herbRegistry(){return herbRegistry;},gatherConfig,saveGatherConfig,herbalismEligibility,importGatherHerbs,
   directories:()=>game.settings.get(MID,'directoryConfig'),
   directoryReport:()=>game.settings.get(MID,'directoryReport'),
   rules:worldRules,saveRules,previewDirectories,refreshDirectories,pending:pendingDialog,brewingEligibility
