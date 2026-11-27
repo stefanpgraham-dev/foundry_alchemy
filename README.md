@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.5.5 — restore recipe and ingredient artwork for linked compendium Items.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.5.6 — resolve potion artwork from the real mapped Item when client compendium indexes are incomplete.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -20,6 +20,14 @@ Or extract the `alchemy-workbench` folder from the release ZIP to `Data/modules/
 - Inventory shows all nine reagent balances and recognised herbs. It also lists likely unmatched herbs/reagents with suggestions for the GM to review mappings.
 - A GM must be connected when players craft. The active GM validates and executes inventory transactions and rolls. Dice So Nice is optional and integrates via normal Foundry Roll chat messages.
 - When both follow-up checks succeed after an initial failure, the player is prompted **after those dice have rolled** to choose full batch at +50% brewing time or partial batch immediately.
+
+## v0.5.6 — reliable artwork for recipes and Brew Potions
+
+The image display code can no longer rely exclusively on a client's saved catalogue and lightweight compendium index. When a mapped Item displays Foundry's default bag icon, the workbench first requests the compendium's `img` index field, then resolves the exact mapped Item UUID if needed. Image lookups are cached and bounded in parallel; missing compendium permissions do not break the rest of the UI.
+
+A GM directory refresh also saves an `outputImages` mapping from actual source documents so players can display item artwork without loading the full source compendium. Explicitly saving a recipe captures its output artwork too. The 44 formulas, ingredient calculations, stored UUID mappings and GM crafting transactions are unchanged.
+
+**After update:** close and reopen the workbench. If artwork is still missing, open **GM Setup → Directories → Refresh from sources → Apply scan** once on the GM account to persist the source artwork for players.
 
 ## v0.5.5 — compendium artwork in Recipes and Brew Potions
 
