@@ -287,6 +287,44 @@ async function refreshDirectories(config){
  ui.notifications.info('Alchemy: '+scan.report.validHerbs+' herbs, '+scan.report.mappedReagents+'/9 reagents and '+scan.report.mappedPotions+' potion outputs mapped; '+scan.report.issues.length+' notices. '+marked+' actor Items classified.');
  return scan.report;
 }
+/** Explicit and idempotent world import; never overwrite a GM’s Items. */
+async function importGatherHerbs(){
+ if(!game.user.isGM)throw Error('Only the GM may import new herb templates.');
+ const choices=(herbRegistry.herbs||[]).filter(h=>h.new);
+ if(!choices.length)throw Error('No additional biome herbs are defined.');
+ const map=setting();
+ const needed=new Set(choices.flatMap(h=>h.reagents));
+ const missing=[...needed].filter(key=>!map.reagents?.[key]);
+ if(missing.length)throw Error('Map the nine reagent Items before importing herbs: '+missing.join(', '));
+ for(const key of needed)if(!await template(map.reagents[key]))throw Error('Linked reagent Item is unavailable: '+key);
+ const sourceConfig=normalizeDirectoryConfig(game.settings.get(MID,'directoryConfig'));
+ let folderId=sourceConfig.herbFolderId;
+ if(!folderId){
+  const existing=game.folders.contents.find(f=>f.type==='Item'&&f.name==='Alchemy Biome Herbs');
+  const folder=existing||await Folder.create({name:'Alchemy Biome Herbs',type:'Item'});
+  folderId=folder.id;
+ }
+ const existingNames=new Set([
+  ...game.items.contents.map(it=>normal(it.name)),
+  ...herbs.map(h=>normal(h.name))
+ ]);
+ let added=0;
+ for(const h of choices){
+  if(existingNames.has(normal(h.name)))continue;
+  const refs=h.reagents.map(key=>'<li>@UUID['+map.reagents[key]+']{'+key.replaceAll('_',' ')+'}</li>').join('');
+  const description='<p>'+esc(h.description)+'</p><p><strong>Known environments:</strong> '+
+   esc(h.biomes.join(', '))+'</p><p><strong>Reagent properties (choose one per herb):</strong></p><ul>'+refs+'</ul>';
+  await Item.create({
+   name:h.name,type:'loot',img:h.img,folder:folderId,
+   system:{quantity:1,rarity:h.rarity,alchemyTier:h.rarity,description:{value:description}},
+   flags:{[MID]:{biomeSeedId:normal(h.name),biomes:h.biomes,gatherWeight:1}}
+  });
+  existingNames.add(normal(h.name));added++;
+ }
+ await refreshDirectories({...sourceConfig,herbFolderId:folderId});
+ return added+' new biome herb Item'+(added===1?'':'s')+' imported and herb sources refreshed. '+
+  (choices.length-added)+' already present or previously imported.';
+}
 async function pendingDialog(){
  if(!game.user.isGM)throw new Error('GM access required.');
  const pending=game.settings.get(MID,'pending');
