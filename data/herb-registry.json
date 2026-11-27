@@ -1,0 +1,966 @@
+{
+  "schema": 1,
+  "source": {
+    "notionDatabase": "https://app.notion.com/p/d73801201fbf4d72b3f47d3fc0dff7bf",
+    "baseCount": 43
+  },
+  "biomes": [
+    "Tundra",
+    "Shore",
+    "Jungle",
+    "Underground",
+    "Caves",
+    "Mountains",
+    "Marsh",
+    "Grasslands",
+    "Desert",
+    "Forest"
+  ],
+  "reagentTypes": [
+    "common_curative",
+    "common_poisonous",
+    "common_reactive",
+    "rare_curative",
+    "rare_poisonous",
+    "rare_reactive",
+    "exotic_curative",
+    "exotic_poisonous",
+    "exotic_reactive"
+  ],
+  "herbs": [
+    {
+      "name": "Blazing Star",
+      "rarity": "exotic",
+      "biomes": [
+        "Grasslands",
+        "Mountains"
+      ],
+      "reagents": [
+        "exotic_curative"
+      ],
+      "description": "Blazing Star stands out with its tall stalks topped with bright purple blooms that attract various pollinators.",
+      "notionUrl": "https://app.notion.com/d572d4900ea949be9ff5fa057abd0daf",
+      "new": false
+    },
+    {
+      "name": "Bogmoss",
+      "rarity": "rare",
+      "biomes": [
+        "Marsh",
+        "Forest",
+        "Grasslands"
+      ],
+      "reagents": [
+        "rare_reactive"
+      ],
+      "description": "Bogmoss is a dense, dark green moss that clings to rocks and tree stumps. It's always wet, exuding a musty, earthy aroma.",
+      "notionUrl": "https://app.notion.com/48b921c24ab14f9ab826081a4493e76e",
+      "new": false
+    },
+    {
+      "name": "Canopy Thistle",
+      "rarity": "exotic",
+      "biomes": [
+        "Forest",
+        "Jungle"
+      ],
+      "reagents": [
+        "rare_poisonous"
+      ],
+      "description": "Canopy Thistle grows high up in the trees, often at the forest canopy level, with spiky, upward-stretching leaves.",
+      "notionUrl": "https://app.notion.com/1edb8b2c60a54fb69f34cbc1a780166b",
+      "new": false
+    },
+    {
+      "name": "Cave Moss",
+      "rarity": "common",
+      "biomes": [
+        "Caves"
+      ],
+      "reagents": [
+        "common_curative"
+      ],
+      "description": "Cave Moss covers large areas of cave walls and floors. It is spongy and dense, with a deep green color that appears almost black in the cave's low light.",
+      "notionUrl": "https://app.notion.com/69813099c962404d8edea35adacc34ae",
+      "new": false
+    },
+    {
+      "name": "Cinderstem",
+      "rarity": "exotic",
+      "biomes": [
+        "Desert"
+      ],
+      "reagents": [
+        "rare_poisonous"
+      ],
+      "description": "Cinderstem is a tough, resilient herb that can survive even near volcanic vents in the desert. It has a scorched, blackened stem.",
+      "notionUrl": "https://app.notion.com/5e94b0495ad34c9a8802efbe56ce19d6",
+      "new": false
+    },
+    {
+      "name": "Coralweed",
+      "rarity": "exotic",
+      "biomes": [
+        "Shore"
+      ],
+      "reagents": [
+        "exotic_curative"
+      ],
+      "description": "Coralweed resembles underwater coral but grows above water on rocky outcroppings along the beach. It is colorful and hard to the touch.",
+      "notionUrl": "https://app.notion.com/3f79b281b178486dbf8c09a1390d334b",
+      "new": false
+    },
+    {
+      "name": "Dreadcap",
+      "rarity": "exotic",
+      "biomes": [
+        "Marsh"
+      ],
+      "reagents": [
+        "exotic_poisonous"
+      ],
+      "description": "This mushroom has a wide, flat cap that is a dull brown color, often covered in a layer of marsh slime. It prefers the darkest, wettest parts of the marsh.",
+      "notionUrl": "https://app.notion.com/1ddf5123d5d643a9a0cb2b36f7abc1fd",
+      "new": false
+    },
+    {
+      "name": "Dripstone Bloom",
+      "rarity": "exotic",
+      "biomes": [
+        "Caves"
+      ],
+      "reagents": [
+        "exotic_reactive"
+      ],
+      "description": "This rare herb forms beneath dripping stalactites, capturing minerals from the water. It crystallizes into beautiful, gem-like structures on its petals.",
+      "notionUrl": "https://app.notion.com/2f3f4316cea847dea3fa6fd9007ee774",
+      "new": false
+    },
+    {
+      "name": "Dunebrush",
+      "rarity": "common",
+      "biomes": [
+        "Desert",
+        "Shore"
+      ],
+      "reagents": [
+        "common_reactive"
+      ],
+      "description": "Dunebrush is a wiry, sprawling shrub with needle-like leaves that minimize water loss. It grows low to the ground to avoid the wind.",
+      "notionUrl": "https://app.notion.com/b7d36d93c05d4d0596757cc4ed7658e0",
+      "new": false
+    },
+    {
+      "name": "Dustbloom",
+      "rarity": "common",
+      "biomes": [
+        "Desert",
+        "Shore"
+      ],
+      "reagents": [
+        "common_poisonous"
+      ],
+      "description": "Dustbloom has delicate, dust-colored petals that blend perfectly with the sandy surroundings, helping it avoid notice.",
+      "notionUrl": "https://app.notion.com/a5d76693f1d2423abe10070db38105ff",
+      "new": false
+    },
+    {
+      "name": "Earthtongue",
+      "rarity": "rare",
+      "biomes": [
+        "Grasslands"
+      ],
+      "reagents": [
+        "rare_reactive",
+        "rare_curative"
+      ],
+      "description": "Earthtongue grows low to the ground with broad, flat leaves that are a deep green, almost blending into the grass around it.",
+      "notionUrl": "https://app.notion.com/996e2a8cac5a492c80e7e6d403168115",
+      "new": false
+    },
+    {
+      "name": "Echo Fungus",
+      "rarity": "exotic",
+      "biomes": [
+        "Caves"
+      ],
+      "reagents": [
+        "exotic_reactive",
+        "exotic_curative"
+      ],
+      "description": "Echo Fungus grows in the deeper, quieter parts of caves. Its cap vibrates slightly, producing echoes that some believe help in navigating the labyrinthine passages.",
+      "notionUrl": "https://app.notion.com/e15c6648840e496c9aa08fa69b2d0fe4",
+      "new": false
+    },
+    {
+      "name": "Echoflower",
+      "rarity": "rare",
+      "biomes": [
+        "Caves"
+      ],
+      "reagents": [
+        "rare_poisonous",
+        "rare_reactive"
+      ],
+      "description": "Echoflower has delicate, bell-shaped violet petals and emits soft, echoing sounds when disturbed, believed to mimic cave sounds to deter predators.",
+      "notionUrl": "https://app.notion.com/74bdec7fa2a34d258ed6ae74ca5328c7",
+      "new": false
+    },
+    {
+      "name": "Fenflower",
+      "rarity": "rare",
+      "biomes": [
+        "Marsh"
+      ],
+      "reagents": [
+        "rare_curative"
+      ],
+      "description": "Fenflower sprouts small, luminescent purple blossoms that light up the marsh at night. It grows in clumps and has a gelatinous stem.",
+      "notionUrl": "https://app.notion.com/06ffd9a460a3475ca63bb40b3011dcb9",
+      "new": false
+    },
+    {
+      "name": "Foamroot",
+      "rarity": "rare",
+      "biomes": [
+        "Shore"
+      ],
+      "reagents": [
+        "rare_curative"
+      ],
+      "description": "Foamroot is often found buried in sandy soils, with only its white, fluffy roots exposed above ground, resembling sea foam.",
+      "notionUrl": "https://app.notion.com/ea414e18505648bebccecde949d4cc88",
+      "new": false
+    },
+    {
+      "name": "Frostfern",
+      "rarity": "common",
+      "biomes": [
+        "Forest",
+        "Tundra",
+        "Mountains"
+      ],
+      "reagents": [
+        "common_reactive"
+      ],
+      "description": "Frostfern has icy blue leaves and thrives in cold patches of the forest, especially near frost-covered areas.",
+      "notionUrl": "https://app.notion.com/b1aa622be2c043478e122e8f220211d0",
+      "new": false
+    },
+    {
+      "name": "Frostnip",
+      "rarity": "common",
+      "biomes": [
+        "Grasslands",
+        "Tundra",
+        "Mountains"
+      ],
+      "reagents": [
+        "common_reactive"
+      ],
+      "description": "Frostnip blossoms in early spring, with tiny white flowers that can survive late frost. It's often the first sign of green in the grasslands after winter.",
+      "notionUrl": "https://app.notion.com/cfadcb06ad614b37be8f09502c960c4b",
+      "new": false
+    },
+    {
+      "name": "Gloomroot",
+      "rarity": "rare",
+      "biomes": [
+        "Caves",
+        "Marsh"
+      ],
+      "reagents": [
+        "rare_reactive"
+      ],
+      "description": "Gloomroot is a pale, almost translucent plant that thrives in the dimmest parts of caves. Its leaves are thin and slightly luminescent, providing a faint light.",
+      "notionUrl": "https://app.notion.com/b516282341a3422494079fb02a98bb0e",
+      "new": false
+    },
+    {
+      "name": "Glowcap",
+      "rarity": "common",
+      "biomes": [
+        "Caves",
+        "Marsh"
+      ],
+      "reagents": [
+        "common_reactive"
+      ],
+      "description": "Glowcap mushrooms emit a soft, bioluminescent glow, illuminating cave passages with a pale blue light. They grow in clusters on damp cave walls.",
+      "notionUrl": "https://app.notion.com/4ab3f2035a544f04989f745f1de43e5c",
+      "new": false
+    },
+    {
+      "name": "Goldenrod",
+      "rarity": "rare",
+      "biomes": [
+        "Grasslands"
+      ],
+      "reagents": [
+        "rare_curative"
+      ],
+      "description": "Goldenrod is easily identifiable by its bright yellow flowers that bloom in dense clusters. It grows abundantly in sunny spots.",
+      "notionUrl": "https://app.notion.com/32ab2290d9ac4eddb705a0472c3366c9",
+      "new": false
+    },
+    {
+      "name": "Heartroot",
+      "rarity": "exotic",
+      "biomes": [
+        "Forest",
+        "Jungle"
+      ],
+      "reagents": [
+        "exotic_curative"
+      ],
+      "description": "Heartroot is a robust plant with deep red roots, usually found near the base of ancient trees where the soil is rich and fertile.",
+      "notionUrl": "https://app.notion.com/57e13e24d09e426f8281784d12dbc740",
+      "new": false
+    },
+    {
+      "name": "Ironshroud Mold",
+      "rarity": "exotic",
+      "biomes": [
+        "Caves"
+      ],
+      "reagents": [
+        "common_reactive",
+        "common_curative"
+      ],
+      "description": "Ironshroud Mold forms a dense, metallic-looking layer over rocks and cave floors. It is tough and resilient, with a texture similar to cast iron.",
+      "notionUrl": "https://app.notion.com/d178598f07f947c2bd351c1ef5e04b3d",
+      "new": false
+    },
+    {
+      "name": "Ironwood Sprig",
+      "rarity": "common",
+      "biomes": [
+        "Forest"
+      ],
+      "reagents": [
+        "common_poisonous"
+      ],
+      "description": "Ironwood Sprig comes from a rare, hardy bush with wood-like stems. It prefers the denser parts of the forest.",
+      "notionUrl": "https://app.notion.com/0437a1d743774b14b304849d28c96a8b",
+      "new": false
+    },
+    {
+      "name": "Mirage Mint",
+      "rarity": "rare",
+      "biomes": [
+        "Desert",
+        "Grasslands",
+        "Shore"
+      ],
+      "reagents": [
+        "rare_poisonous",
+        "rare_reactive"
+      ],
+      "description": "Mirage Mint is known for its hallucinogenic properties. It has silvery leaves that reflect light, often making it appear as a mirage from a distance.",
+      "notionUrl": "https://app.notion.com/642eadead8dd4a91af958ca7d76091bd",
+      "new": false
+    },
+    {
+      "name": "Mireweed",
+      "rarity": "common",
+      "biomes": [
+        "Marsh"
+      ],
+      "reagents": [
+        "common_reactive",
+        "common_poisonous"
+      ],
+      "description": "Mireweed has broad, flat leaves that float on the surface of marsh waters. Its roots delve deep into the underwater soil, absorbing nutrients.",
+      "notionUrl": "https://app.notion.com/e7669599591343d193c29cf33e5236ea",
+      "new": false
+    },
+    {
+      "name": "Mistvine",
+      "rarity": "rare",
+      "biomes": [
+        "Forest",
+        "Jungle"
+      ],
+      "reagents": [
+        "rare_curative",
+        "rare_reactive"
+      ],
+      "description": "Mistvine is a light green vine that grows in misty areas of the forest, often near streams or waterfalls. It exudes a faint, calming aroma.",
+      "notionUrl": "https://app.notion.com/57d718d606b1450eb63fba82088922cd",
+      "new": false
+    },
+    {
+      "name": "Nightshade Cactus",
+      "rarity": "exotic",
+      "biomes": [
+        "Desert"
+      ],
+      "reagents": [
+        "exotic_poisonous",
+        "exotic_reactive"
+      ],
+      "description": "Unlike typical cacti, the Nightshade Cactus blooms only at night, featuring deep purple flowers and a thick, water-storing base.",
+      "notionUrl": "https://app.notion.com/c5fccd90340d4f669f8cb8687f7b8902",
+      "new": false
+    },
+    {
+      "name": "Prairie Sage",
+      "rarity": "common",
+      "biomes": [
+        "Grasslands",
+        "Desert",
+        "Shore",
+        "Tundra"
+      ],
+      "reagents": [
+        "common_poisonous"
+      ],
+      "description": "This herb has a strong aromatic presence with silvery-green leaves and is often used to mark territory borders due to its potent scent.",
+      "notionUrl": "https://app.notion.com/c6f8dd8af53843e886971c1b3bf60f8d",
+      "new": false
+    },
+    {
+      "name": "Quicksand Root",
+      "rarity": "rare",
+      "biomes": [
+        "Desert"
+      ],
+      "reagents": [
+        "rare_reactive",
+        "rare_curative"
+      ],
+      "description": "This herb grows around areas of loose sand, anchoring itself deeply into the earth. It has a thick, tuberous root.",
+      "notionUrl": "https://app.notion.com/3b1117f3c5944d60b1522a9381177a7a",
+      "new": false
+    },
+    {
+      "name": "Saltvine",
+      "rarity": "common",
+      "biomes": [
+        "Shore",
+        "Desert",
+        "Marsh"
+      ],
+      "reagents": [
+        "common_reactive",
+        "common_curative"
+      ],
+      "description": "This sturdy herb grows close to the shoreline, its leaves thick and waxy to retain moisture. It has a silvery-green hue and emits a salty scent.",
+      "notionUrl": "https://app.notion.com/8b6bb8060b5c488a8ad5149adaeca2c3",
+      "new": false
+    },
+    {
+      "name": "Searing Thistle",
+      "rarity": "common",
+      "biomes": [
+        "Desert"
+      ],
+      "reagents": [
+        "common_poisonous",
+        "common_reactive"
+      ],
+      "description": "This herb has fiery red thorns and thrives in the hottest parts of the desert, often found near heat vents or sun-baked stones.",
+      "notionUrl": "https://app.notion.com/7809241f839341bfa23f9ee96681173b",
+      "new": false
+    },
+    {
+      "name": "Shadowleaf",
+      "rarity": "rare",
+      "biomes": [
+        "Forest"
+      ],
+      "reagents": [
+        "rare_reactive"
+      ],
+      "description": "Shadowleaf is a dark green, almost black herb that thrives in the shadows of towering trees. It has velvety leaves that absorb light.",
+      "notionUrl": "https://app.notion.com/5ee90454a9e64984872c573c90875460",
+      "new": false
+    },
+    {
+      "name": "Skybloom",
+      "rarity": "rare",
+      "biomes": [
+        "Grasslands",
+        "Mountains",
+        "Tundra"
+      ],
+      "reagents": [
+        "rare_reactive",
+        "rare_curative"
+      ],
+      "description": "Skybloom has delicate blue flowers that seem to mirror the color of the sky. It prefers high, windy plateaus.",
+      "notionUrl": "https://app.notion.com/460d3a85a3a64d05985da06c36de1e15",
+      "new": false
+    },
+    {
+      "name": "Sporepuff",
+      "rarity": "rare",
+      "biomes": [
+        "Caves",
+        "Marsh"
+      ],
+      "reagents": [
+        "rare_poisonous"
+      ],
+      "description": "This large, bulbous mushroom releases clouds of spores when disturbed. It has a spongy texture and a deep green color.",
+      "notionUrl": "https://app.notion.com/cbacaae5a14c4b7a87a66edb7b3ab4bc",
+      "new": false
+    },
+    {
+      "name": "Stalagtide Sprout",
+      "rarity": "rare",
+      "biomes": [
+        "Caves"
+      ],
+      "reagents": [
+        "rare_curative",
+        "rare_reactive"
+      ],
+      "description": "This herb grows around the base of stalagmites, featuring a hard, crusty exterior that blends well with its rocky surroundings.",
+      "notionUrl": "https://app.notion.com/eef82d6809ad4f30bb2de48aa1928ae0",
+      "new": false
+    },
+    {
+      "name": "Stormleaf",
+      "rarity": "rare",
+      "biomes": [
+        "Shore",
+        "Grasslands"
+      ],
+      "reagents": [
+        "rare_poisonous",
+        "rare_reactive"
+      ],
+      "description": "This herb thrives in areas frequently hit by sea storms. It has dark, serrated leaves that can withstand strong winds and saltwater spray.",
+      "notionUrl": "https://app.notion.com/e7a3bb7eeb1a4f5e9278f5fbcc43d07c",
+      "new": false
+    },
+    {
+      "name": "Sunberry Bush",
+      "rarity": "common",
+      "biomes": [
+        "Forest"
+      ],
+      "reagents": [
+        "common_curative"
+      ],
+      "description": "This herb bears bright, golden berries and flourishes in patches of sunlight that break through the forest canopy.",
+      "notionUrl": "https://app.notion.com/d17e57109e8a4a85980071fa1ff8c9a3",
+      "new": false
+    },
+    {
+      "name": "Sunscorch Bloom",
+      "rarity": "common",
+      "biomes": [
+        "Desert",
+        "Shore"
+      ],
+      "reagents": [
+        "common_curative"
+      ],
+      "description": "This vibrant orange flower thrives under the intense desert sun, its petals tough and leathery to conserve moisture.",
+      "notionUrl": "https://app.notion.com/b939838cbfe54b8489d709e143e13276",
+      "new": false
+    },
+    {
+      "name": "Swampthorn",
+      "rarity": "exotic",
+      "biomes": [
+        "Jungle",
+        "Marsh",
+        "Forest"
+      ],
+      "reagents": [
+        "exotic_reactive",
+        "exotic_poisonous"
+      ],
+      "description": "Swampthorn bushes bear sharp thorns and have a robust, vine-like quality that allows them to wrap around other plants and trees for support.",
+      "notionUrl": "https://app.notion.com/eae79ea50a744c419364d4dbe513aad3",
+      "new": false
+    },
+    {
+      "name": "Thundersprout",
+      "rarity": "exotic",
+      "biomes": [
+        "Grasslands",
+        "Mountains",
+        "Forest"
+      ],
+      "reagents": [
+        "exotic_poisonous",
+        "exotic_reactive"
+      ],
+      "description": "This rare herb is said to only grow where lightning has struck. It has a charged appearance, with crackling energy around its stems when touched.",
+      "notionUrl": "https://app.notion.com/74e97f391bc642a08b3e74f082ccff35",
+      "new": false
+    },
+    {
+      "name": "Tideblossom",
+      "rarity": "rare",
+      "biomes": [
+        "Shore"
+      ],
+      "reagents": [
+        "rare_reactive"
+      ],
+      "description": "Tideblossom features vibrant blue petals that bloom only during high tide. The stems are long and flexible, swaying with the ocean's currents.",
+      "notionUrl": "https://app.notion.com/30299c9a6cfd42f181ced00410378c5d",
+      "new": false
+    },
+    {
+      "name": "Whisperweed",
+      "rarity": "rare",
+      "biomes": [
+        "Forest",
+        "Grasslands",
+        "Marsh"
+      ],
+      "reagents": [
+        "rare_poisonous",
+        "rare_reactive"
+      ],
+      "description": "This herb has long, slender leaves that make a soft whispering sound when wind passes through them. It grows best in secluded spots.",
+      "notionUrl": "https://app.notion.com/d2bbe2e49e0c4ef0be62b11ec8285910",
+      "new": false
+    },
+    {
+      "name": "Windwhisper Grass",
+      "rarity": "common",
+      "biomes": [
+        "Grasslands"
+      ],
+      "reagents": [
+        "common_reactive"
+      ],
+      "description": "Tall and slender, this grass sways with even the gentlest breeze, producing a soft, calming sound.",
+      "notionUrl": "https://app.notion.com/0dad376d824b464d87063199b8ab5436",
+      "new": false
+    },
+    {
+      "name": "Venomspore Lichen",
+      "rarity": "common",
+      "biomes": [
+        "Caves"
+      ],
+      "reagents": [
+        "common_poisonous"
+      ],
+      "description": "A creeping yellow-black lichen that beads violet venom along damp limestone. It feeds on blind cave insects and releases an acrid scent when disturbed.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/venomsporelichen.svg"
+    },
+    {
+      "name": "Blackwidow Mycelium",
+      "rarity": "exotic",
+      "biomes": [
+        "Caves"
+      ],
+      "reagents": [
+        "exotic_poisonous"
+      ],
+      "description": "Hair-thin ebony fungal strands grow in the deepest fissures like a spider’s web. Their ink-dark nodules contain a paralytic essence prized by dangerous poisoners.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/blackwidowmycelium.svg"
+    },
+    {
+      "name": "Sunwell Agave",
+      "rarity": "exotic",
+      "biomes": [
+        "Desert"
+      ],
+      "reagents": [
+        "exotic_curative"
+      ],
+      "description": "This exceptionally rare succulent shelters a reservoir of luminous, amber sap behind stone-hard leaves. It grows only where underground water rises beneath scorching sands.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/sunwellagave.svg"
+    },
+    {
+      "name": "Meadowheart Clover",
+      "rarity": "common",
+      "biomes": [
+        "Grasslands"
+      ],
+      "reagents": [
+        "common_curative"
+      ],
+      "description": "Clusters of pale four-petalled clover soften the grassland earth after rain. Its roots store a cool restorative juice used in simple healing remedies.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/meadowheartclover.svg"
+    },
+    {
+      "name": "Ghostwillow Orchid",
+      "rarity": "exotic",
+      "biomes": [
+        "Marsh"
+      ],
+      "reagents": [
+        "exotic_curative"
+      ],
+      "description": "White, translucent blossoms grow from the roots of drowned willow trees and shine above black water. The flower’s silver nectar preserves vitality through fever and decay.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/ghostwilloworchid.svg"
+    },
+    {
+      "name": "Rainheart Fern",
+      "rarity": "common",
+      "biomes": [
+        "Jungle"
+      ],
+      "reagents": [
+        "common_curative"
+      ],
+      "description": "Wide emerald fronds collect fresh rain and funnel it into a sweet, medicinal heart. The fern returns quickly after storms beneath dense tropical canopies.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/rainheartfern.svg"
+    },
+    {
+      "name": "Bittervine",
+      "rarity": "common",
+      "biomes": [
+        "Jungle"
+      ],
+      "reagents": [
+        "common_poisonous"
+      ],
+      "description": "A climbing vine with glossy purple-black berries and small hooked barbs. Its bitter sap numbs the tongue and is poisonous in concentrated form.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/bittervine.svg"
+    },
+    {
+      "name": "Flickerseed Pod",
+      "rarity": "common",
+      "biomes": [
+        "Jungle"
+      ],
+      "reagents": [
+        "common_reactive"
+      ],
+      "description": "Yellow pods burst with a brief blue spark whenever they dry or split. Alchemists use the lightly charged seeds as a reactive catalyst.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/flickerseedpod.svg"
+    },
+    {
+      "name": "Stoneleaf Balm",
+      "rarity": "common",
+      "biomes": [
+        "Mountains"
+      ],
+      "reagents": [
+        "common_curative"
+      ],
+      "description": "Thick silver-haired leaves cling to alpine cracks, surviving frost and thin soils. When crushed, they release a cooling balm that closes superficial wounds.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/stoneleafbalm.svg"
+    },
+    {
+      "name": "Needlewort",
+      "rarity": "common",
+      "biomes": [
+        "Mountains"
+      ],
+      "reagents": [
+        "common_poisonous"
+      ],
+      "description": "A spined yellow-flowering mountain weed whose barbs carry a mild irritant. Dried sap becomes a common poisonous preparation.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/needlewort.svg"
+    },
+    {
+      "name": "Wolfsbane Crest",
+      "rarity": "rare",
+      "biomes": [
+        "Mountains"
+      ],
+      "reagents": [
+        "rare_poisonous"
+      ],
+      "description": "Hooded blue-violet flowers gather beneath steep highland cliffs. The roots yield a potent toxin that must be collected with extreme care.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/wolfsbanecrest.svg"
+    },
+    {
+      "name": "Siren's Blight Coral",
+      "rarity": "exotic",
+      "biomes": [
+        "Shore"
+      ],
+      "reagents": [
+        "exotic_poisonous",
+        "exotic_reactive"
+      ],
+      "description": "Magenta branching growths glimmer turquoise where tidal caves meet the sea. Their living polyps yield either a volatile catalyst or deadly marine toxin, never both from one harvest.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/sirensblightcoral.svg"
+    },
+    {
+      "name": "Rimeberry",
+      "rarity": "common",
+      "biomes": [
+        "Tundra"
+      ],
+      "reagents": [
+        "common_curative"
+      ],
+      "description": "Frost-rimmed scarlet berries grow on low shrubs sheltered by snowdrifts. Even in deep winter, their tart juices retain a surprising restorative warmth.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/rimeberry.svg"
+    },
+    {
+      "name": "Bitter Frostcap",
+      "rarity": "rare",
+      "biomes": [
+        "Tundra"
+      ],
+      "reagents": [
+        "rare_poisonous"
+      ],
+      "description": "Blue-black mushrooms emerge from frozen timber during brief thaws. Their gills hold a slow-acting toxin that remains powerful when iced.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/bitterfrostcap.svg"
+    },
+    {
+      "name": "Aurora Bloom",
+      "rarity": "exotic",
+      "biomes": [
+        "Tundra"
+      ],
+      "reagents": [
+        "exotic_curative"
+      ],
+      "description": "An iridescent crystal-petalled flower unfolds only beneath the northern lights. Its nectar stores a fleeting but profound curative energy.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/aurorabloom.svg"
+    },
+    {
+      "name": "Stormglass Lichen",
+      "rarity": "exotic",
+      "biomes": [
+        "Tundra"
+      ],
+      "reagents": [
+        "exotic_poisonous",
+        "exotic_reactive"
+      ],
+      "description": "Violet crystalline lichen forms on storm-split glacial rock. It absorbs lightning and polar winds, offering either a volatile reagent or a dangerous toxin.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/stormglasslichen.svg"
+    },
+    {
+      "name": "Rootlight Moss",
+      "rarity": "common",
+      "biomes": [
+        "Underground"
+      ],
+      "reagents": [
+        "common_curative"
+      ],
+      "description": "Soft pale-green moss grows around warm subterranean springs. Its faint golden glow marks a gentle curative sap even in places untouched by sunlight.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/rootlightmoss.svg"
+    },
+    {
+      "name": "Gravewort",
+      "rarity": "common",
+      "biomes": [
+        "Underground"
+      ],
+      "reagents": [
+        "common_poisonous"
+      ],
+      "description": "Dark, blade-shaped leaves push through burial soil and abandoned mine tailings. Their ashen veins carry a bitter poisonous compound.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/gravewort.svg"
+    },
+    {
+      "name": "Ferrospore",
+      "rarity": "common",
+      "biomes": [
+        "Underground"
+      ],
+      "reagents": [
+        "common_reactive"
+      ],
+      "description": "Rust-orange fungal cups cling to old iron seams and crumble into magnetic dust. Their spores react readily when mixed with other alchemical extracts.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/ferrospore.svg"
+    },
+    {
+      "name": "Deepvein Fern",
+      "rarity": "rare",
+      "biomes": [
+        "Underground"
+      ],
+      "reagents": [
+        "rare_curative",
+        "rare_reactive"
+      ],
+      "description": "Pale fronds trace mineral veins through stone, pulsing blue along their stems. Its mineral-rich sap may be refined as a healing essence or a reactive tincture.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/deepveinfern.svg"
+    },
+    {
+      "name": "Blindcap",
+      "rarity": "rare",
+      "biomes": [
+        "Underground"
+      ],
+      "reagents": [
+        "rare_poisonous"
+      ],
+      "description": "A sightless mushroom with curled indigo gills grows in absolute darkness. Its dusty spores carry a potent narcotic poison.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/blindcap.svg"
+    },
+    {
+      "name": "Voidbloom",
+      "rarity": "exotic",
+      "biomes": [
+        "Underground"
+      ],
+      "reagents": [
+        "exotic_curative",
+        "exotic_reactive"
+      ],
+      "description": "Petals black as polished obsidian surround a pinprick of violet light. This strange underground flower can produce either an unusually powerful restorative essence or a planar catalyst.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/voidbloom.svg"
+    },
+    {
+      "name": "Blackheart Spore",
+      "rarity": "exotic",
+      "biomes": [
+        "Underground"
+      ],
+      "reagents": [
+        "exotic_poisonous"
+      ],
+      "description": "A crimson-black toadstool thrives near corrupt subterranean roots. The heart-shaped spores conceal a fiercely concentrated toxin.",
+      "new": true,
+      "weight": 1,
+      "img": "modules/alchemy-workbench/assets/herbs/blackheartspore.svg"
+    }
+  ]
+}
