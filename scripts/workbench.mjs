@@ -5,6 +5,7 @@ import {directoryView,directoryAction} from './directory-ui.mjs';
 import {recipeEditorInput,recipeEditorImport,recipeEditorDrop} from './recipe-ui.mjs';
 import {brewToolLabel,brewToolSummary} from './recipe-tools.mjs';
 import {rulesEditorInput} from './rules-ui.mjs';
+import {gatherView,gatherInput,gatherAction} from './gathering-ui.mjs';
 import {recipeDC,recipeHours} from './recipes.mjs';
 import {templateImage,hydrateTemplateImages,FALLBACK_ITEM_IMAGE} from './item-images.mjs';
 
@@ -39,6 +40,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     this.gmKind='directories';this.gmSearch='';this.gmFilter='all';this.gmSort='name';this.mappingDraft=null;this.directoryDraft=null;
      this.rulesDraft=null;this.rulesDirty=false;
      this.herbQuery='';this.herbFilter='all';this.herbSort='name';
+     this.gatherBiome='Caves';this.gatherOverridesDraft=null;
     this.busy=false;this.notice=null;
     this._artworkCache=new Map();
     this._checkedArtwork=new Set();
@@ -109,7 +111,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
   }
   _layout(){
     const mapping=this.services.mappings(),reagentRows=this._inventory(),herbRows=this._herbs();
-    const tabs=[['brew','fa-flask','Brew Potions'],['extract','fa-leaf','Prepare Herbs'],['refine','fa-arrows-down-to-line','Refine Reagents'],['inventory','fa-boxes-stacked','Inventory']];
+    const tabs=[['brew','fa-flask','Brew Potions'],['extract','fa-leaf','Prepare Herbs'],['refine','fa-arrows-down-to-line','Refine Reagents'],['inventory','fa-boxes-stacked','Inventory'],['gather','fa-seedling','Gather Herbs']];
     if(game.user.isGM)tabs.push(['gm','fa-gear','GM Setup']);
     return `<div class="awb-shell">
       <header class="awb-hero">
@@ -118,7 +120,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
       </header>
       <nav class="awb-tabs" aria-label="Alchemy sections">${tabs.map(([id,fa,text])=>`<button type="button" data-tab="${id}" class="${this.tab===id?'active':''}" aria-current="${this.tab===id?'page':'false'}"><i class="fas ${fa}" aria-hidden="true"></i> ${esc(text)}</button>`).join('')}</nav>
       ${this.notice?message(this.notice.text,this.notice.kind):''}
-      <main class="awb-main">${this.tab==='brew'?this._brew():this.tab==='extract'?this._extract():this.tab==='refine'?this._refine():this.tab==='inventory'?this._inventoryTab():this._gm()}</main>
+      <main class="awb-main">${this.tab==='brew'?this._brew():this.tab==='extract'?this._extract():this.tab==='refine'?this._refine():this.tab==='inventory'?this._inventoryTab():this.tab==='gather'?gatherView(this):this._gm()}</main>
     </div>`;
   }
   _toolOptions(qualification){
@@ -224,6 +226,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
   _input(event){
     const el=event.target;
     if(el.matches?.('[data-search="recipes"]')){this.search=el.value;this._filterInput(el,'recipes');}
+    if(gatherInput(this,event))return;
     if(rulesEditorInput(this,event))return;
     if(recipeEditorInput(this,event))return;
     if(el.matches?.('[data-search="gm"]')){this.gmSearch=el.value;this._filterInput(el,'gm');}
@@ -240,6 +243,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
   }
   _change(event){
     const el=event.target;
+    if(gatherInput(this,event))return;
     if(el.matches?.('[data-rule-field]')){rulesEditorInput(this,event);return;}
     if(el.matches?.('[data-recipe-filter],[data-recipe-sort],[data-recipe-output-select]')){recipeEditorInput(this,event);return;}
     if(el.matches?.('[data-recipe-import]')){
@@ -271,7 +275,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     }
   }
   async _click(event){
-    const target=event.target.closest?.('[data-tab],[data-recipe],[data-herb],[data-herb-key],[data-refine],[data-refine-tier],[data-gm-kind],[data-action]');
+    const target=event.target.closest?.('[data-tab],[data-recipe],[data-herb],[data-herb-key],[data-refine],[data-refine-tier],[data-gm-kind],[data-gather-pick],[data-action]');
     if(!target||this.busy)return;
     if(target.dataset.tab){this.tab=target.dataset.tab;this.notice=null;await this.render();return;}
     if(target.dataset.recipe){this.recipeId=target.dataset.recipe;this.batch=1;this.selectedIds=null;await this.render();return;}
@@ -280,6 +284,7 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     if(target.dataset.refine){this.selectedRefineId=target.dataset.refine;this.refineQty=1;this.refineTier=null;await this.render();return;}
     if(target.dataset.refineTier){this.refineTier=target.dataset.refineTier;await this.render();return;}
     if(target.dataset.gmKind){this.gmKind=target.dataset.gmKind;this.gmSearch='';this.gmFilter='all';await this.render();return;}
+    if(target.dataset.gatherPick){this.gatherBiome=target.dataset.gatherPick;await this.render();return;}
     const action=target.dataset.action;
     if(action==='herb-filter'){const list=['all','common','rare','exotic'];this.herbFilter=list[(list.indexOf(this.herbFilter)+1)%list.length];this.herbQuery='';await this.render();return;}
     if(action==='herb-sort'){const list=['name','rarity','quantity'];this.herbSort=list[(list.indexOf(this.herbSort)+1)%list.length];await this.render();return;}
@@ -288,7 +293,8 @@ export class AlchemyWorkbench extends foundry.applications.api.ApplicationV2 {
     if(['refine-minus','refine-plus'].includes(action)){this.refineQty+=action.endsWith('minus')?-1:1;await this.render();return;}
     try{
       this.busy=true;
-      if(action==='brew')await this._doBrew();
+      if(action==='gather-roll')await gatherAction(this,action);
+      else if(action==='brew')await this._doBrew();
       else if(action==='extract')await this._doExtract();
       else if(action==='refine')await this._doRefine();
       else if(action==='gm-save')await this._saveMappings();
