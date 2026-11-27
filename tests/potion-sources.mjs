@@ -38,6 +38,8 @@ assert.equal(scan.potionMappings.healing,'Item.healing');
 assert.equal(scan.updatedRecipes.find(r=>r.id==='healing').outputUuid,'Item.healing');
 assert(scan.report.issues.some(i=>i.type==='potion'&&i.name==='Antitoxin'));
 assert.equal(scan.potionCatalog[0].uuid,'Item.healing');
+assert.equal(scan.outputImages['Item.healing'],worldPotion.img,
+ 'world directory scan preserves exact output artwork for recipe cards');
 const noPots=scanDirectories(world,{herbFolderId:'herbs',reagentFolderId:'reagents'},
  {recipes:[healing],mappings:{outputs:{}}});
 assert.equal(noPots.report.potionItems,0);
