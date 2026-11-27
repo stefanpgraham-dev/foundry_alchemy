@@ -227,9 +227,11 @@ async function saveMappings(kind,values){
 }
 async function previewDirectories(config){
  if(!game.user.isGM)throw new Error('GM access required.');
- return scanConfiguredSources({folders:game.folders,items:game.items},config,{herbs,recipes,mappings:setting()},{
+ const scan=await scanConfiguredSources({folders:game.folders,items:game.items},config,{herbs,recipes,mappings:setting()},{
   packs:game.packs,resolveUuid:uuid=>fromUuid(uuid)
  });
+ scan.herbs=enrichHerbs(scan.herbs);
+ return scan;
 }
 async function refreshDirectories(config){
  if(!game.user.isGM)throw new Error('GM access required.');
@@ -516,21 +518,23 @@ Hooks.once('init',()=>{
   game.settings.register(MID,'mappings',{name:'Alchemy item mappings',scope:'world',config:false,type:Object,default:blankMappings()});
  game.settings.register(MID,'directoryConfig',{name:'Alchemy item folders',scope:'world',config:false,type:Object,default:defaultDirectoryConfig()});
  game.settings.register(MID,'herbCatalog',{name:'Discovered herb catalogue',scope:'world',config:false,type:Array,default:[]});
+ game.settings.register(MID,'gatherOverrides',{name:'Biome gathering tables and DC overrides',scope:'world',config:false,type:Object,default:{biomeDC:{},herbs:{}}});
   game.settings.register(MID,'potionCatalog',{name:'Selected potion source catalogue',scope:'world',config:false,type:Array,default:[]});
  game.settings.register(MID,'recipeLibrary',{name:'World recipe library',scope:'world',config:false,type:Object,default:{initialized:false,recipes:[]}});
  game.settings.register(MID,'directoryReport',{name:'Alchemy directory validation',scope:'world',config:false,type:Object,default:{issues:[],added:[],changed:[],removed:[],herbItems:0,reagentItems:0,potionItems:0,potionSourceItems:0,validHerbs:0,mappedReagents:0,mappedPotions:0,missingPotions:0,ambiguousPotions:0,recipeResults:[]}});
  game.settings.register(MID,'pending',{name:'Pending alchemy brews',scope:'world',config:false,type:Array,default:[]});
- const api={open:hub,setup:()=>hub({tab:'gm'}),legacySetup:setupHub,getRecipes:()=>structuredClone(recipes),getDefaultRecipes:()=>structuredClone(defaultRecipes),saveRecipes,getRules:worldRules,saveRules,recipeTest:()=>hub({tab:'gm'}),getHerbs:()=>structuredClone(herbs),previewDirectories,refreshDirectories};
+ const api={open:hub,setup:()=>hub({tab:'gm'}),legacySetup:setupHub,getRecipes:()=>structuredClone(recipes),getDefaultRecipes:()=>structuredClone(defaultRecipes),saveRecipes,getRules:worldRules,saveRules,recipeTest:()=>hub({tab:'gm'}),getHerbs:()=>structuredClone(herbs),getHerbRegistry:()=>structuredClone(herbRegistry),previewDirectories,refreshDirectories};
  game.modules.get(MID).api=api;
  Hooks.on('renderActorSheetV2',addSheetButton);
  Hooks.on('renderActorSheet',addSheetButton);
  Hooks.on('updateSetting',setting=>{
-  if(setting.key===MID+'.herbCatalog')herbs=game.settings.get(MID,'herbCatalog')||[];
+  if(setting.key===MID+'.herbCatalog')herbs=enrichHerbs(game.settings.get(MID,'herbCatalog')||[]);
+  if(setting.key===MID+'.gatherOverrides')herbs=enrichHerbs(game.settings.get(MID,'herbCatalog')||[]);
   if(setting.key===MID+'.recipeLibrary'){
    const data=game.settings.get(MID,'recipeLibrary');
    if(data?.initialized)recipes.splice(0,recipes.length,...migrateRecipeTools(data.recipes).recipes);
   }
-  if([MID+'.herbCatalog',MID+'.potionCatalog',MID+'.mappings',MID+'.recipeLibrary',MID+'.rules'].includes(setting.key)){
+  if([MID+'.herbCatalog',MID+'.potionCatalog',MID+'.mappings',MID+'.recipeLibrary',MID+'.rules',MID+'.gatherOverrides'].includes(setting.key)){
    for(const app of openWorkbenches){
     if(!app?.rendered)continue;
     if([MID+'.herbCatalog',MID+'.potionCatalog',MID+'.mappings'].includes(setting.key))
@@ -549,6 +553,7 @@ Hooks.once('ready',async()=>{
  try{
   const base=`modules/${MID}/data/`;
   defaultRecipes=await fetch(`${base}recipes.json`).then(x=>{if(!x.ok)throw Error('Default recipes missing');return x.json();});
+  herbRegistry=await fetch(`${base}herb-registry.json`).then(x=>{if(!x.ok)throw Error('Biome herb registry missing');return x.json();});
   const library=game.settings.get(MID,'recipeLibrary');
   if(library?.initialized){
     const migrated=migrateRecipeTools(library.recipes);
@@ -563,7 +568,7 @@ Hooks.once('ready',async()=>{
     await game.settings.set(MID,'recipeLibrary',{initialized:true,recipes:seeded});
    }
   }
-  herbs=game.settings.get(MID,'herbCatalog')||[];
+  herbs=enrichHerbs(game.settings.get(MID,'herbCatalog')||[]);
   game.socket.on(SOCKET,onSocket);
   ui.notifications.info('Alchemy Workbench ready. Open from any owned character sheet, or via the module API.',{permanent:false});
  }catch(err){notifyError(err);}
