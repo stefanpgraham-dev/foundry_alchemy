@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.5.8 — biome-based herb gathering, 23 new regional herb artworks, Notion linkage and GM gathering rules.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.5.9 — complete biome gathering, illustrated herb import and source-link fixes.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
