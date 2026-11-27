@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.5.7 — GM PC-only macro selection and actor-sheet context.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.5.8 — biome-based herb gathering, 23 new regional herb artworks, Notion linkage and GM gathering rules.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -20,6 +20,18 @@ Or extract the `alchemy-workbench` folder from the release ZIP to `Data/modules/
 - Inventory shows all nine reagent balances and recognised herbs. It also lists likely unmatched herbs/reagents with suggestions for the GM to review mappings.
 - A GM must be connected when players craft. The active GM validates and executes inventory transactions and rolls. Dice So Nice is optional and integrates via normal Foundry Roll chat messages.
 - When both follow-up checks succeed after an initial failure, the player is prompted **after those dice have rolled** to choose full batch at +50% brewing time or partial batch immediately.
+
+## v0.5.8 — herb gathering and balanced biomes
+
+The installed PoE Herbs Notion catalogue contains **43 existing herbs**. `data/herb-registry.json` preserves their names, 10 environment tags, rarity, reagents and Notion URLs (including three pre-existing mismatches in herb rarity vs reagent tier). The registry now contains **23 additional biome-specific herbs**, each with unique lore, reagent links, a dedicated SVG botanical illustration and a matching Notion entry. After installation there are **66 eligible herbs**, spanning **9 of 9 reagent combinations in each of 10 biomes**. Existing 43 World/compendium Items are never overwritten.
+
+**GM preparation:** Configure the nine reagent sources and the original herb folder and/or compendium in `GM Setup → Directories`, then open `GM Setup → Gathering` and select **Install missing biome herbs**. This is an explicit, idempotent operation, creating Item templates in the selected World herb folder (or a new “Alchemy Biome Herbs” folder when only compendiums are selected). It adds @UUID reagent references to each description, includes botanical art, and refreshes source mappings. A pure compendium source does not need editing. A manual directory refresh updates any source changes.
+
+**Gather Herbs tab:** Select one of ten biomes and make a native **Wisdom (Herbalism Kit)** check with a carried, proficient kit. The active GM resolves it and awards real source Item copies to the selected actor. Failure gives zero; success gives one; **DC+5 gives two** and **DC+10 gives three**. A separate weighted random draw is made per herb, with 2×d100 to preserve standard dice support and an exact uniform 1–10,000 random range. Sources are selected from mapped, scanned herb Items only. Items without a source or with 0 weight are excluded. Herb processing still yields exactly one *chosen* reagent per herb, even when an herb lists two potential properties.
+
+**GM Setup → Rules:** Default gathering DC 15, the +5/+10 thresholds, yield counts and Common/Rare/Exotic tier weights **60/30/10**, all adjustable. **GM Setup → Gathering** exposes per-biome DC overrides, per-herb relative weights and a coverage report. Zero herb weight disables that herb without deleting its Item. World settings are validated and shown in the existing dark and light themes.
+
+**Security:** Players cannot supply unverified Item templates, yields, source UUIDs or dice outcomes. The active GM revalidates actor ownership, herb sources, selected biome, proficiency and inventory updates. If a source is missing, the roll cannot fabricate a reward. Gathering time remains GM-controlled; repeated-use site depletion is not yet enforced.
 
 ## v0.5.7 — actor selection entry points
 
