@@ -177,7 +177,7 @@ export function matchPotionRecipes(recipes=[],items=[],mappings={}){
  const candidates=new Map(),issues=[],updatedRecipes=[],outputs={},autoOutputs={};
  const results=[],unique=new Map(items.filter(x=>x?.uuid&&x?.name).map(x=>[x.uuid,x]));
  const available=[...unique.values()].filter(alchemyItem);
- const catalog=available.map(item=>({uuid:item.uuid,name:item.name,img:item.img||'',type:item.type||''}))
+ const catalog=available.map(item=>({uuid:item.uuid,name:item.name,img:item.img||item?._source?.img||'',type:item.type||''}))
   .sort((a,b)=>a.name.localeCompare(b.name)||a.uuid.localeCompare(b.uuid));
  for(const item of available){
   const key=potionNameKey(item.name);
@@ -286,7 +286,7 @@ export function scanDirectories(world,config,previous={},sources={}){
    used.add(chosen.uuid);
    reagentMappings[key]=chosen.uuid;
    reagentNames[key]=chosen.name;
-   reagentImages[key]=chosen.img||'';
+   reagentImages[key]=chosen.img||chosen?._source?.img||'';
    reagentAliases[key]=[...new Set([...
     sourceAliases(chosen),
     ...found.flatMap(sourceAliases)
