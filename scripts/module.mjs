@@ -316,8 +316,8 @@ async function importGatherHerbs(){
    esc(h.biomes.join(', '))+'</p><p><strong>Reagent properties (choose one per herb):</strong></p><ul>'+refs+'</ul>';
   await Item.create({
    name:h.name,type:'loot',img:h.img,folder:folderId,
-   system:{quantity:1,rarity:h.rarity,alchemyTier:h.rarity,description:{value:description}},
-   flags:{[MID]:{biomeSeedId:normal(h.name),biomes:h.biomes,gatherWeight:1}}
+   system:{quantity:1,rarity:h.rarity==='exotic'?'veryRare':h.rarity,description:{value:description}},
+   flags:{[MID]:{biomeSeedId:normal(h.name),alchemyTier:h.rarity,biomes:h.biomes,gatherWeight:1}}
   });
   existingNames.add(normal(h.name));added++;
  }
