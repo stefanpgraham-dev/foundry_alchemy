@@ -25,7 +25,7 @@ export const normalizeDirectoryConfig=config=>({
 /** Resolve dnd5e's system.rarity and system.rarities without inventing a reagent type. */
 export function herbRarity(item,config={}){
  const sys=item?.system||{},tiers=new Set(['common','rare','exotic']);
- const explicit=[sys.alchemyTier,sys.alchemy?.tier].find(v=>typeof v==='string'&&tiers.has(normalize(v).replace(/ /g,'')));
+ const explicit=[item?.flags?.['alchemy-workbench']?.alchemyTier,sys.alchemyTier,sys.alchemy?.tier].find(v=>typeof v==='string'&&tiers.has(normalize(v).replace(/ /g,'')));
  if(explicit)return {rarity:normalize(explicit).replace(/ /g,''),sourceRarity:''};
  const input=[sys.rarities,sys.rarity,sys.type?.rarity].find(v=>
   typeof v==='string'&&v.trim()||Array.isArray(v)&&v.length||
