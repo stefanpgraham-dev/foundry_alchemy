@@ -6,11 +6,13 @@ import {recipeDC,recipeHours,seedDefaults,validateLibrary,migrateRecipeTools} fr
 import {brewToolSummary} from './recipe-tools.mjs';
 import {brewingEligibility,selectBrewingTool,rollAlchemyToolCheck,naturalD20Result} from './eligibility.mjs';
 import {defaultRules,validateRules,criticalDiceCount,bonusRollFormula,partialRollFormula,extraTimeHours} from './rules.mjs';
+import {macroActors,preferredMacroActor,resolveRequestedActor} from './actor-selection.mjs';
 
 const DIALOG=()=>foundry.applications.api.DialogV2;
 const esc=v=>foundry.utils.escapeHTML(String(v??''));
 const slug=s=>String(s).replace(/_/g,' ');
 const actors=()=>game.actors.contents.filter(a=>a.testUserPermission(game.user,'OWNER'));
+const macroChoices=()=>macroActors(game.actors.contents,game.user);
 const blankMappings=()=>({reagents:{},herbs:{},reagentAliases:{},herbAliases:{},reagentOverrides:{},outputs:{},autoOutputs:{},outputImages:{},reagentImages:{}});
 const worldRules=()=>validateRules(game.settings.get(MID,'rules')||defaultRules());
 const openWorkbenches=new Set();
@@ -34,13 +36,17 @@ const listHtml=(rows)=>`<div class="awb-rows">${rows.join('')}</div>`;
 const summary=(title,description)=>`<div class="awb"><h3>${esc(title)}</h3><p>${esc(description)}</p>`;
 
 async function selectActor(){
- const possible=actors();
- if(!possible.length)throw new Error('You do not control a character with an inventory.');
- const preferred=canvas?.tokens?.controlled?.find(t=>possible.some(a=>a.id===t.actor?.id))?.actor||game.user.character;
- if(preferred&&possible.some(a=>a.id===preferred.id))return preferred;
+ const possible=macroChoices();
+ if(!possible.length)throw new Error(game.user.isGM?
+  'No player characters exist in this world. Create a Character actor, or open Alchemy directly from an actor sheet.':
+  'You do not control a character with an inventory.');
+ const preferred=preferredMacroActor(possible,{
+  controlled:canvas?.tokens?.controlled||[],character:game.user.character
+ });
+ if(preferred)return preferred;
  if(possible.length===1)return possible[0];
  const result=await wait('Alchemy — Select Character',`<div class="awb">${field('Character',sel('actor',possible.map(a=>({value:a.id,label:a.name}))))}</div>`,[button('choose','Choose',(e,b)=>b.form.elements.actor.value,true)]);
- return result?game.actors.get(result):null;
+ return result&&possible.some(a=>a.id===result)?game.actors.get(result):null;
 }
 function workbench(actor){
  const app=new AlchemyWorkbench(actor,{
@@ -52,13 +58,17 @@ function workbench(actor){
  openWorkbenches.add(app);
  return app;
 }
-async function hub({tab='brew'}={}){
+async function hub({tab='brew',actor:explicitActor=null,actorId=null}={}){
  if(!recipes.length){ui.notifications.warn('Alchemy data are not ready.');return;}
  try{
-  // GM setup must also work in a new world before any Actor has been created.
-  const actor=tab==='gm' && !actors().length
+  // The sheet passes its Actor explicitly; macro calls without an Actor use
+  // the GM's PC-only picker. NPC sheets remain valid direct entry points.
+  const requested=resolveRequestedActor({actor:explicitActor,actorId},game.actors,game.user);
+  // GM setup is independent of player characters: worlds with only NPCs,
+  // or empty worlds, must still be configurable.
+  const actor=requested||(tab==='gm'&&!macroChoices().length
     ? {id:'world-setup',name:'World Setup',system:{},items:{contents:[],get:()=>null,*[Symbol.iterator](){}}}
-    : await selectActor();
+    : await selectActor());
   if(!actor)return;
   const app=workbench(actor);app.tab=tab;await app.render(true);
   return app;
@@ -487,7 +497,7 @@ function addSheetButton(app,html){
  const root=html instanceof HTMLElement?html:html?.[0]||app.element;
  const header=root?.querySelector?.('.window-header');if(!header||header.querySelector('.awb-header-button'))return;
  const el=document.createElement('button');el.className='awb-header-button';el.type='button';el.title='Alchemy Workbench';el.innerHTML='<i class="fas fa-flask" aria-hidden="true"></i> Alchemy';
- el.addEventListener('click',e=>{e.preventDefault();void hub();});
+ el.addEventListener('click',e=>{e.preventDefault();void hub({actor});});
  header.insertBefore(el,header.querySelector('.window-title')?.nextSibling||header.firstChild);
 }
 Hooks.once('init',()=>{
