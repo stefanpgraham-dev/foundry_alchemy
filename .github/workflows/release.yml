@@ -23,7 +23,7 @@ jobs:
           TAG="v${VERSION}"
           mkdir -p dist/alchemy-workbench
           cp module.json README.md package.json dist/alchemy-workbench/
-          cp -R data scripts styles dist/alchemy-workbench/
+          cp -R data scripts styles assets dist/alchemy-workbench/
           node --input-type=module <<'JS'
           import fs from 'node:fs';
           const p='dist/alchemy-workbench/module.json';
