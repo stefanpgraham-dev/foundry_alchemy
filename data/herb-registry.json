@@ -648,7 +648,8 @@
       "description": "A creeping yellow-black lichen that beads violet venom along damp limestone. It feeds on blind cave insects and releases an acrid scent when disturbed.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/venomsporelichen.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/venomsporelichen.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e81fb89f5ca4aab4f4568"
     },
     {
       "name": "Blackwidow Mycelium",
@@ -662,7 +663,8 @@
       "description": "Hair-thin ebony fungal strands grow in the deepest fissures like a spider’s web. Their ink-dark nodules contain a paralytic essence prized by dangerous poisoners.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/blackwidowmycelium.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/blackwidowmycelium.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e8147bdb6f20a31d1c3b3"
     },
     {
       "name": "Sunwell Agave",
@@ -676,7 +678,8 @@
       "description": "This exceptionally rare succulent shelters a reservoir of luminous, amber sap behind stone-hard leaves. It grows only where underground water rises beneath scorching sands.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/sunwellagave.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/sunwellagave.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e81d1937eda836a95090a"
     },
     {
       "name": "Meadowheart Clover",
@@ -690,7 +693,8 @@
       "description": "Clusters of pale four-petalled clover soften the grassland earth after rain. Its roots store a cool restorative juice used in simple healing remedies.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/meadowheartclover.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/meadowheartclover.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e81e1939ce17c5a286cb2"
     },
     {
       "name": "Ghostwillow Orchid",
@@ -704,7 +708,8 @@
       "description": "White, translucent blossoms grow from the roots of drowned willow trees and shine above black water. The flower’s silver nectar preserves vitality through fever and decay.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/ghostwilloworchid.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/ghostwilloworchid.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e814da983d42434eb9fbb"
     },
     {
       "name": "Rainheart Fern",
@@ -718,7 +723,8 @@
       "description": "Wide emerald fronds collect fresh rain and funnel it into a sweet, medicinal heart. The fern returns quickly after storms beneath dense tropical canopies.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/rainheartfern.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/rainheartfern.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e816897cce074045679fa"
     },
     {
       "name": "Bittervine",
@@ -732,7 +738,8 @@
       "description": "A climbing vine with glossy purple-black berries and small hooked barbs. Its bitter sap numbs the tongue and is poisonous in concentrated form.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/bittervine.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/bittervine.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e817ea712c4d358e65e3a"
     },
     {
       "name": "Flickerseed Pod",
@@ -746,7 +753,8 @@
       "description": "Yellow pods burst with a brief blue spark whenever they dry or split. Alchemists use the lightly charged seeds as a reactive catalyst.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/flickerseedpod.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/flickerseedpod.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e8156aec4e66ad1ccfcc6"
     },
     {
       "name": "Stoneleaf Balm",
@@ -760,7 +768,8 @@
       "description": "Thick silver-haired leaves cling to alpine cracks, surviving frost and thin soils. When crushed, they release a cooling balm that closes superficial wounds.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/stoneleafbalm.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/stoneleafbalm.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e81259b6eda1abe5068b0"
     },
     {
       "name": "Needlewort",
@@ -774,7 +783,8 @@
       "description": "A spined yellow-flowering mountain weed whose barbs carry a mild irritant. Dried sap becomes a common poisonous preparation.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/needlewort.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/needlewort.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e812c9c8aead72a703899"
     },
     {
       "name": "Wolfsbane Crest",
@@ -788,7 +798,8 @@
       "description": "Hooded blue-violet flowers gather beneath steep highland cliffs. The roots yield a potent toxin that must be collected with extreme care.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/wolfsbanecrest.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/wolfsbanecrest.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e81ab8bb4f0d2a7ee9b0d"
     },
     {
       "name": "Siren's Blight Coral",
@@ -803,7 +814,8 @@
       "description": "Magenta branching growths glimmer turquoise where tidal caves meet the sea. Their living polyps yield either a volatile catalyst or deadly marine toxin, never both from one harvest.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/sirensblightcoral.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/sirensblightcoral.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e817482c2f6e4b059c4ce"
     },
     {
       "name": "Rimeberry",
@@ -817,7 +829,8 @@
       "description": "Frost-rimmed scarlet berries grow on low shrubs sheltered by snowdrifts. Even in deep winter, their tart juices retain a surprising restorative warmth.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/rimeberry.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/rimeberry.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e818ba1a4e3b3b67af134"
     },
     {
       "name": "Bitter Frostcap",
@@ -831,7 +844,8 @@
       "description": "Blue-black mushrooms emerge from frozen timber during brief thaws. Their gills hold a slow-acting toxin that remains powerful when iced.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/bitterfrostcap.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/bitterfrostcap.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e81e8b61de30626b3c620"
     },
     {
       "name": "Aurora Bloom",
@@ -845,7 +859,8 @@
       "description": "An iridescent crystal-petalled flower unfolds only beneath the northern lights. Its nectar stores a fleeting but profound curative energy.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/aurorabloom.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/aurorabloom.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e81638115c4a315f91598"
     },
     {
       "name": "Stormglass Lichen",
@@ -860,7 +875,8 @@
       "description": "Violet crystalline lichen forms on storm-split glacial rock. It absorbs lightning and polar winds, offering either a volatile reagent or a dangerous toxin.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/stormglasslichen.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/stormglasslichen.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e811cb9afe1f62b147d3a"
     },
     {
       "name": "Rootlight Moss",
@@ -874,7 +890,8 @@
       "description": "Soft pale-green moss grows around warm subterranean springs. Its faint golden glow marks a gentle curative sap even in places untouched by sunlight.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/rootlightmoss.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/rootlightmoss.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e81bbaa4cd7be41ce258e"
     },
     {
       "name": "Gravewort",
@@ -888,7 +905,8 @@
       "description": "Dark, blade-shaped leaves push through burial soil and abandoned mine tailings. Their ashen veins carry a bitter poisonous compound.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/gravewort.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/gravewort.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e812fb0b6e9d08e13baf2"
     },
     {
       "name": "Ferrospore",
@@ -902,7 +920,8 @@
       "description": "Rust-orange fungal cups cling to old iron seams and crumble into magnetic dust. Their spores react readily when mixed with other alchemical extracts.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/ferrospore.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/ferrospore.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e81f2b508edc4e7695b7a"
     },
     {
       "name": "Deepvein Fern",
@@ -917,7 +936,8 @@
       "description": "Pale fronds trace mineral veins through stone, pulsing blue along their stems. Its mineral-rich sap may be refined as a healing essence or a reactive tincture.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/deepveinfern.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/deepveinfern.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e8148be5bd1e8288633bc"
     },
     {
       "name": "Blindcap",
@@ -931,7 +951,8 @@
       "description": "A sightless mushroom with curled indigo gills grows in absolute darkness. Its dusty spores carry a potent narcotic poison.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/blindcap.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/blindcap.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e8180b815dd00a8b1dd06"
     },
     {
       "name": "Voidbloom",
@@ -946,7 +967,8 @@
       "description": "Petals black as polished obsidian surround a pinprick of violet light. This strange underground flower can produce either an unusually powerful restorative essence or a planar catalyst.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/voidbloom.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/voidbloom.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e81a89330d1219864171a"
     },
     {
       "name": "Blackheart Spore",
@@ -960,7 +982,8 @@
       "description": "A crimson-black toadstool thrives near corrupt subterranean roots. The heart-shaped spores conceal a fiercely concentrated toxin.",
       "new": true,
       "weight": 1,
-      "img": "modules/alchemy-workbench/assets/herbs/blackheartspore.svg"
+      "img": "modules/alchemy-workbench/assets/herbs/blackheartspore.svg",
+      "notionUrl": "https://app.notion.com/4253b1eb4e8e811c870be6d5ac110c62"
     }
   ]
 }
