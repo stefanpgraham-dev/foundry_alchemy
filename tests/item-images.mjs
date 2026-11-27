@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {compendiumItemReference,templateImage,FALLBACK_ITEM_IMAGE} from '../scripts/item-images.mjs';
+import {compendiumItemReference,templateImage,hydrateTemplateImages,FALLBACK_ITEM_IMAGE} from '../scripts/item-images.mjs';
 
 const compUuid='Compendium.dnd5e.equipment24.Item.dmgPotionOfHeali';
 assert.deepEqual(compendiumItemReference(compUuid),{
@@ -41,4 +41,49 @@ assert.equal(templateImage('Compendium.world.reagents.Item.curative',{
 assert.equal(templateImage(compUuid,{packs:new Map()}),FALLBACK_ITEM_IMAGE,
  'Missing index uses a known Foundry core icon rather than a broken external path');
 assert.equal(templateImage(''),FALLBACK_ITEM_IMAGE);
+
+// A previously saved world image works on a player client with NO compendium access.
+assert.equal(templateImage(compUuid,{packs:new Map(),mappings:{
+ outputImages:{[compUuid]:compImage}
+}}),compImage,'persistent output image should not depend on viewing a compendium');
+
+// When the selected source is valid but the local pack index is missing img,
+// the new renderer explicitly requests the img index field.
+let getIndexCalls=0;
+const lazyPack={
+ index:new Map([['dmgPotionOfHeali',{_id:'dmgPotionOfHeali'}]]),
+ async getIndex(options){
+  getIndexCalls++;
+  assert.deepEqual(options,{fields:['img']});
+  this.index.get('dmgPotionOfHeali').img=compImage;
+  return this.index;
+ }
+};
+const lazyResolved=await hydrateTemplateImages([compUuid,compUuid],{
+ packs:new Map([['dnd5e.equipment24',lazyPack]]),
+ resolveUuid:()=>{throw Error('Full Item should not be needed if index has img');}
+});
+assert.equal(lazyResolved.get(compUuid),compImage);
+assert.equal(getIndexCalls,1,'index requested once, even when the same UUID repeats');
+
+// If the index fails or contains no artwork, the exact mapped Item is fetched.
+// No cross-name search or inferred alternative template is permitted.
+let fetched=[];
+const fullImage='icons/consumables/potions/from-real-item.webp';
+const noImgPack={index:new Map(),async getIndex(){return this.index;}};
+const fullResolved=await hydrateTemplateImages([compUuid],{
+ packs:new Map([['dnd5e.equipment24',noImgPack]]),
+ resolveUuid:async uuid=>{
+  fetched.push(uuid);return {documentName:'Item',img:fullImage};
+ }
+});
+assert.deepEqual(fetched,[compUuid]);
+assert.equal(fullResolved.get(compUuid),fullImage);
+
+// A missing or inaccessible Item must not prevent the rest of the UI rendering.
+const missing=await hydrateTemplateImages([compUuid],{
+ packs:new Map(),resolveUuid:async()=>{throw Error('Not accessible');}
+});
+assert.equal(missing.has(compUuid),false);
+
 console.log('World, compendium, potion catalogue, reagent and herb artwork resolution passed.');
