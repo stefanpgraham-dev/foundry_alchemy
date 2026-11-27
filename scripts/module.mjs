@@ -11,7 +11,7 @@ const DIALOG=()=>foundry.applications.api.DialogV2;
 const esc=v=>foundry.utils.escapeHTML(String(v??''));
 const slug=s=>String(s).replace(/_/g,' ');
 const actors=()=>game.actors.contents.filter(a=>a.testUserPermission(game.user,'OWNER'));
-const blankMappings=()=>({reagents:{},herbs:{},reagentAliases:{},herbAliases:{},reagentOverrides:{},outputs:{},autoOutputs:{}});
+const blankMappings=()=>({reagents:{},herbs:{},reagentAliases:{},herbAliases:{},reagentOverrides:{},outputs:{},autoOutputs:{},outputImages:{},reagentImages:{}});
 const worldRules=()=>validateRules(game.settings.get(MID,'rules')||defaultRules());
 const openWorkbenches=new Set();
 let recipes=[],herbs=[],defaultRecipes=[];
@@ -135,9 +135,14 @@ async function saveRules(raw){
 async function saveRecipes(entries){
  if(!game.user.isGM)throw new Error('Only a GM can edit the recipe library.');
  const validated=validateLibrary(entries,{allowMissingOutput:true});
+ const verifiedOutputImages={};
  for(const r of validated){
   if(r.source==='custom'&&r.enabled&&!r.outputUuid)throw new Error('Enabled custom recipe '+r.name+' requires a potion output Item.');
-  if(r.outputUuid && !await template(r.outputUuid))throw new Error('Missing potion output for '+r.name+': '+r.outputUuid);
+  if(!r.outputUuid)continue;
+  const item=await template(r.outputUuid);
+  if(!item)throw new Error('Missing potion output for '+r.name+': '+r.outputUuid);
+  if(typeof item.img==='string'&&item.img&&item.img!=='icons/svg/item-bag.svg')
+   verifiedOutputImages[r.outputUuid]=item.img;
  }
  const oldLibrary=structuredClone(game.settings.get(MID,'recipeLibrary'));
  const oldMappings=structuredClone(setting()||blankMappings());
@@ -148,7 +153,8 @@ async function saveRecipes(entries){
   const next=validated.find(r=>r.id===id),old=recipes.find(r=>r.id===id);
   return next&&old&&next.outputUuid===uuid&&next.name===old.name;
  }));
- const updatedMappings={...oldMappings,outputs:outputMap,autoOutputs};
+ const updatedMappings={...oldMappings,outputs:outputMap,autoOutputs,
+  outputImages:{...(oldMappings.outputImages||{}),...verifiedOutputImages}};
  try{
   await game.settings.set(MID,'mappings',updatedMappings);
   await game.settings.set(MID,'recipeLibrary',{initialized:true,recipes:validated});
@@ -216,6 +222,7 @@ async function refreshDirectories(config){
  const nextMap={...oldMap,
   reagents:scan.reagentMappings,reagentNames:scan.reagentNames,reagentAliases:scan.reagentAliases,reagentImages:scan.reagentImages,
   herbs:scan.herbMappings,herbNames:scan.herbNames,herbAliases:scan.herbAliases,
+  outputImages:{...(oldMap.outputImages||{}),...(scan.outputImages||{})},
   ...(hasPotionSource?{outputs:scan.potionMappings,autoOutputs:scan.autoPotionMappings}:{})
  };
  try{
@@ -502,9 +509,11 @@ Hooks.once('init',()=>{
    const data=game.settings.get(MID,'recipeLibrary');
    if(data?.initialized)recipes.splice(0,recipes.length,...migrateRecipeTools(data.recipes).recipes);
   }
-  if([MID+'.herbCatalog',MID+'.mappings',MID+'.recipeLibrary',MID+'.rules'].includes(setting.key)){
+  if([MID+'.herbCatalog',MID+'.potionCatalog',MID+'.mappings',MID+'.recipeLibrary',MID+'.rules'].includes(setting.key)){
    for(const app of openWorkbenches){
     if(!app?.rendered)continue;
+    if([MID+'.herbCatalog',MID+'.potionCatalog',MID+'.mappings'].includes(setting.key))
+     app._clearArtworkCache?.();
     void app.render({force:true}).catch(error=>console.warn(MID+': window refresh failed',error));
    }
   }
