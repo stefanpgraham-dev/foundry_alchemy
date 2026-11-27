@@ -451,7 +451,7 @@ function respond(p,userId,ok,message){
  game.socket.emit(SOCKET,{type:'result',nonce:p.nonce,targetUserId:userId,ok,message});
 }
 async function performAction(p,senderId){
- if(!['brew','extract','refine','finish'].includes(p.mode))throw new Error('Invalid crafting mode.');
+ if(!['brew','extract','refine','finish','gather'].includes(p.mode))throw new Error('Invalid crafting mode.');
  const actor=validActor(p.actorId,senderId),map=setting();
  if(p.mode==='finish'){
   if(!game.users.get(senderId)?.isGM)throw new Error('Only the GM can complete pending brewing time.');
@@ -473,7 +473,37 @@ async function performAction(p,senderId){
   await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<p><strong>Alchemy completed:</strong> ${esc(job.recipeName)} × ${job.batch}. Additional ${job.extraHours} hours elapsed.</p>`});
   return `${job.recipeName} × ${job.batch} awarded.`;
  }
- if(p.mode==='extract'){
+ if(p.mode==='gather'){
+   if(!BIOMES.includes(p.biome))throw Error('Select a valid gathering biome.');
+   const rule=worldRules().gathering,dc=gatherConfig().biomeDC?.[p.biome]||rule.dc;
+   const table=biomeTable(herbs,p.biome,rule.tierWeights);
+   if(!table.length)throw Error('No eligible source-linked herbs in '+p.biome+'. Refresh herb sources.');
+   const eligible=herbalismEligibility(actor);
+   if(!eligible.ok)throw Error(eligible.errors.join(' '));
+   const check=await rollHerbalismGathering(actor,dc);
+   const count=gatherYield(check.total,dc,rule);
+   const selected=new Map();
+   for(let i=0;i<count;i++){
+    const high=await roll('1d100',p.biome+' herb table · first d100',actor);
+    const low=await roll('1d100',p.biome+' herb table · second d100',actor);
+    const value=(Number(high.total)-1)*100+Number(low.total);
+    const herb=weightedPick(table,value).herb;
+    selected.set(herb.id,{herb,qty:(selected.get(herb.id)?.qty||0)+1});
+   }
+   if(selected.size){
+    const outputs=[...selected.values()].map(x=>({kind:'herb',id:x.herb.id,quantity:x.qty}));
+    await applyInventory(actor,[],outputs,map);
+   }
+   const report=[...selected.values()].map(x=>'<li>'+esc(x.herb.name)+' × '+x.qty+'</li>').join('');
+   await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:
+    '<article class="awb-chat"><h3>Herb Gathering · '+esc(p.biome)+'</h3>'+
+    '<p><strong>Wisdom (Herbalism Kit):</strong> '+check.total+' vs DC '+dc+
+    ' · <strong>Collected:</strong> '+count+'</p>'+
+    (report?'<ul>'+report+'</ul>':'<p>No herbs collected.</p>')+'</article>'});
+   return count?'Gathered '+count+' herb'+(count===1?'':'s')+' from '+p.biome+'.':
+    'Gathering failed; no herbs collected.';
+  }
+  if(p.mode==='extract'){
   const plan=planExtract(actor,p.herbId,p.itemId,p.quantity,herbs,map,p.reagentKey);
   await applyInventory(actor,plan.consume,plan.outputs,map);
   await ChatMessage.create({speaker:ChatMessage.getSpeaker({actor}),content:`<p><strong>Reagents prepared:</strong> ${esc(fmt(plan.outputs))}. No check required.</p>`});
