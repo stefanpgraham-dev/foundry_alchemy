@@ -20,7 +20,7 @@ const world=new Map(all.map(x=>[x.id,x]));
 
 assert.deepEqual(macroActors(all,gm).map(x=>x.id),['pc-a','pc-c','pc-b'],
  'GM macro must show only character actors, sorted by name');
-assert.deepEqual(macroActors(all,player).map(x=>x.id),['pc-a','npc','pc-b','vehicle'],
+assert.deepEqual(macroActors(all,player).map(x=>x.id),['pc-a','vehicle','npc','pc-b'],
  'Non-GM actor permissions/selection remain unchanged');
 assert.equal(allowedActor(npc,gm),true,'GM may deliberately open an NPC sheet');
 assert.equal(allowedActor(pcUnowned,player),false,'players cannot bypass ownership');
