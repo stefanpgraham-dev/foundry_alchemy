@@ -101,3 +101,28 @@ export function naturalD20Result(roll){
   ??die?.results?.[0];
  return Number(active?.result??0);
 }
+
+/** Gathering requires an actual Herbalism Kit and proficiency; the check uses
+ * Wisdom rather than brewing's Intelligence, preserving 2024 tool bonuses. */
+export function herbalismEligibility(actor){
+ const item=Array.from(actor?.items||[]).find(isHerbalismKit)||null;
+ const proficient=Boolean(item&&hasBrewingToolProficiency(actor,'herb',item));
+ const errors=[];
+ if(!item)errors.push('Carry a Herbalism Kit to gather herbs.');
+ if(item&&!proficient)errors.push('Herbalism Kit proficiency is required.');
+ if(typeof actor?.rollToolCheck!=='function')errors.push('Native D&D 5e tool checks unavailable.');
+ return {ok:!errors.length,item,proficient,errors};
+}
+export async function rollHerbalismGathering(actor,dc){
+ const eligibility=herbalismEligibility(actor);
+ if(!eligibility.ok)throw Error(eligibility.errors.join(' '));
+ const checks=await actor.rollToolCheck({
+  tool:'herb',ability:'wis',item:eligibility.item,target:dc
+ },{configure:false},{
+  create:true,data:{flavor:'Alchemy · Wisdom (Herbalism Kit) gathering · DC '+dc}
+ });
+ const roll=Array.isArray(checks)?checks[0]:checks;
+ if(!roll||!Number.isFinite(Number(roll.total)))
+  throw Error('Herbalism gathering check was cancelled.');
+ return roll;
+}
