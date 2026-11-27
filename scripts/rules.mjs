@@ -5,6 +5,10 @@ export const defaultRules=()=>({
  dc:{common:10,rare:12,exotic:14},
  hours:{common:2,rare:4,exotic:6},
  maxBatch:100,
+ gathering:{
+  dc:15,plusFive:5,plusTen:10,yield2:2,yield3:3,
+  tierWeights:{common:60,rare:30,exotic:10}
+ },
  critical:{
   naturalThreshold:20,
   followUps:2,
@@ -45,10 +49,19 @@ export function validateRules(input){
  if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Rules must be a configuration object.');
  const d=defaultRules();
  const dc=input.dc??d.dc,hours=input.hours??d.hours;
- const c=input.critical??d.critical,f=input.failure??d.failure;
+ const c=input.critical??d.critical,f=input.failure??d.failure,g=input.gathering??d.gathering;
  const checked={
   schema:1,dc:{},hours:{},
   maxBatch:integer(input.maxBatch??d.maxBatch,'Maximum batch',1,100),
+  gathering:{
+   dc:integer(g.dc??d.gathering.dc,'Herb gathering DC',1,40),
+   plusFive:integer(g.plusFive??d.gathering.plusFive,'Second herb margin',1,20),
+   plusTen:integer(g.plusTen??d.gathering.plusTen,'Third herb margin',2,30),
+   yield2:integer(g.yield2??d.gathering.yield2,'Second herb yield',1,10),
+   yield3:integer(g.yield3??d.gathering.yield3,'Third herb yield',1,10),
+   tierWeights:Object.fromEntries(['common','rare','exotic'].map(t=>[
+    t,integer(g.tierWeights?.[t]??d.gathering.tierWeights[t],t+' gathering weight',0,100)]))
+  },
   critical:{
    naturalThreshold:integer(c.naturalThreshold??d.critical.naturalThreshold,'Critical natural d20 threshold',2,20),
    followUps:integer(c.followUps??d.critical.followUps,'Critical follow-up checks',0,2),
@@ -68,6 +81,12 @@ export function validateRules(input){
   }
  };
  if(!checked.failure.twoPassMode)throw Error('Both-success failure outcome must be player choice, extra time or immediate yield.');
+ if(checked.gathering.plusTen<=checked.gathering.plusFive)
+  throw Error('Third herb margin must exceed second herb margin.');
+ if(checked.gathering.yield3<checked.gathering.yield2)
+  throw Error('Higher gathering margin must not award fewer herbs.');
+ if(!Object.values(checked.gathering.tierWeights).some(x=>x>0))
+  throw Error('At least one gathering rarity weight must be positive.');
  for(const tier of ['common','rare','exotic']){
   checked.dc[tier]=integer(dc[tier]??d.dc[tier],tier+' brewing DC',1,40);
   checked.hours[tier]=quarterHours(hours[tier]??d.hours[tier],tier+' brewing time');
