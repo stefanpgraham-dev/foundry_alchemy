@@ -20,6 +20,18 @@ export function rulesView(app){
   '<div class="awb-rule-tier"><strong>'+tier[0].toUpperCase()+tier.slice(1)+'</strong>'+
   numbers('dc.'+tier,r.dc[tier],{min:1,max:40})+
   numbers('hours.'+tier,r.hours[tier],{min:.25,max:72,step:.25})+'</div>').join('');
+ const gathering=sheet('Herb gathering',
+  'Make a Wisdom (Herbalism Kit) check. Each successful herb is drawn separately from the selected biome table.',
+  '<div class="awb-rule-fields">'+
+  field('Gathering DC','Default 15; each biome may override the DC.',numbers('gathering.dc',r.gathering.dc,{min:1,max:40}))+
+  field('Second yield at DC +','Default +5.',numbers('gathering.plusFive',r.gathering.plusFive,{min:1,max:20}))+
+  field('Herbs at second threshold','Default 2.',numbers('gathering.yield2',r.gathering.yield2,{min:1,max:10}))+
+  field('Third yield at DC +','Default +10.',numbers('gathering.plusTen',r.gathering.plusTen,{min:2,max:30}))+
+  field('Herbs at third threshold','Default 3.',numbers('gathering.yield3',r.gathering.yield3,{min:1,max:10}))+
+  field('Common rarity weight','Default 60.',numbers('gathering.tierWeights.common',r.gathering.tierWeights.common,{min:0,max:100}))+
+  field('Rare rarity weight','Default 30.',numbers('gathering.tierWeights.rare',r.gathering.tierWeights.rare,{min:0,max:100}))+
+  field('Exotic rarity weight','Default 10.',numbers('gathering.tierWeights.exotic',r.gathering.tierWeights.exotic,{min:0,max:100}))+
+  '</div>');
  const critical=sheet('Critical success',
   'A natural d20 at or above the threshold triggers independent Alchemist’s Supplies follow-up checks. Each successful check can grant bonus potions.',
   '<div class="awb-rule-fields">'+
@@ -48,10 +60,11 @@ export function rulesView(app){
   sheet('Difficulty and brewing time','The highest ingredient tier selects this DC and duration. Individual recipes can override either.',
     '<div class="awb-rule-tiers"><div class="awb-rule-tier awb-rule-tier-header"><span>Tier</span><span>DC</span><span>Hours</span></div>'+tierTable+'</div>'+
     '<div class="awb-rule-fields">'+field('Maximum batch size','Maximum 100. Every batch still makes one brewing check and takes the same time as a single potion.',numbers('maxBatch',r.maxBatch,{min:1,max:100}))+'</div>')+
-  '<div class="awb-rules-grid">'+critical+failure+'</div>'+
+  '<div class="awb-rules-grid">'+critical+failure+'</div>'+gathering+
   sheet('Fixed crafting fundamentals','These are intentionally not toggles: modifying them requires changes to the item economy and check pipeline, not just configuration.',
     '<div class="awb-rule-static"><p><strong>Tool check:</strong> Intelligence + Alchemist’s Supplies, requiring both tools and proficiency (or expertise).</p>'+
     '<p><strong>Dice:</strong> Initial and follow-up d20s use native D&D 5e checks. Bonus, partial and percentile rolls appear in Foundry chat / Dice So Nice.</p>'+
+    '<p><strong>Gathering:</strong> Wisdom (Herbalism Kit), with GM-awarded source-verified loot; time managed by the GM.</p>'+ 
     '<p><strong>Herb extraction:</strong> 1 herb → 1 chosen reagent; no check.</p>'+
     '<p><strong>Reagent value:</strong> Common 1, Rare 3, Exotic 9; downgrades only, with unspent change returned. No check.</p>'+
     '<p><strong>Timing:</strong> GM manages elapsed time; extra-time jobs are completed by GM action. No automatic calendar advancement.</p></div>')+
