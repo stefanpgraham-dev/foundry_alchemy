@@ -154,13 +154,13 @@ globalThis.ui={notifications:{info:()=>{},warn:()=>{},error:e=>{throw Error(e)}}
 globalThis.foundry={utils:{escapeHTML:s=>String(s),randomID:()=>`job-${++serial}`},applications:{api:{ApplicationV2:class{constructor(options){this.options=options;}}}}};
 const fetchNative=globalThis.fetch;
 globalThis.fetch=async url=>{
- const file=url.endsWith('recipes.json')?'recipes.json':null;
+ const file=url.endsWith('recipes.json')?'recipes.json':url.endsWith('herb-registry.json')?'herb-registry.json':null;
  return file?{ok:true,json:async()=>JSON.parse(fs.readFileSync(path.join(root,'data',file),'utf8'))}:{ok:false};
 };
 await import('../scripts/module.mjs');
 check(typeof hooks.init==='function'&&typeof hooks.ready==='function','Foundry startup hooks registered');
 await hooks.init();
-check(registered.length===8,'world rules, recipe, directory, herb/potion catalogues, report, mappings and pending settings registered');
+check(registered.length===9,'world rules, gathering overrides, recipe, directory, herb/potion catalogues, report, mappings and pending settings registered');
 check(typeof moduleEntry.api.open==='function'&&typeof moduleEntry.api.setup==='function','UI API available');
 game.user={id:'gm',isGM:true};
 await hooks.ready();
