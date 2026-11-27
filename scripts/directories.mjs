@@ -334,7 +334,9 @@ export function scanDirectories(world,config,previous={},sources={}){
   const rarity=herbRarity(item,selected);
   const id=item.uuid.startsWith('Item.')?'world-'+item.id:'pack-'+item.uuid.replace(/[^A-Za-z0-9_-]/g,'_');
   const herb={id,name:item.name,rarity:rarity.rarity,sourceRarity:rarity.sourceRarity,
-   reagents:KEYS.filter(key=>found.has(key)),sourceUuid:item.uuid,img:item.img||''};
+   reagents:KEYS.filter(key=>found.has(key)),sourceUuid:item.uuid,img:item.img||item?._source?.img||'',
+   biomes:Array.isArray(item.flags?.['alchemy-workbench']?.biomes)?item.flags['alchemy-workbench'].biomes:[],
+   gatherWeight:item.flags?.['alchemy-workbench']?.gatherWeight??1};
   prepared.push({item,herb,aliases:sourceAliases(item)});
  }
  // Consolidate only an actual World import with its selected Compendium original
