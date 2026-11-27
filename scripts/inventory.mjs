@@ -104,9 +104,10 @@ export async function sourceData(uuid, category=null){
  return raw;
 }
 export async function outputData(kind,id,mappings,recipeName='') {
- const uuid=(kind==='reagent'?mappings.reagents?.[id]:mappings.outputs?.[id])||'';
- if(uuid)return await sourceData(uuid,kind==='reagent'?id:null);
- if(kind==='reagent')throw new Error(`Missing reagent mapping: ${id}`);
+ const uuid=(kind==='reagent'?mappings.reagents?.[id]:
+  kind==='herb'?mappings.herbs?.[id]:mappings.outputs?.[id])||'';
+ if(uuid)return await sourceData(uuid,['reagent','herb'].includes(kind)?id:null);
+ if(kind==='reagent'||kind==='herb')throw new Error(`Missing source Item mapping for ${kind}: ${id}`);
  // Item is deliberately mechanical-neutral when no configured world/compendium item exists.
  return {name:recipeName,type:'consumable',img:'icons/consumables/potions/potion-bottle-corked-red.webp',system:{quantity:1,description:{value:`Crafted using the Alchemy Workbench. Configure a potion output Item UUID in GM Setup for full activities and effects.`}},flags:{[MID]:{recipeId:id}}};
 }
@@ -144,7 +145,9 @@ export async function applyInventory(actor, consumed, outputs, mappings) {
  const additions=[];
  for(const {out,data,templateUuid,id} of sources){
   const matching=actor.items.contents.find(it=> !qtyMap.has(it.id) && getQty(it)>0 &&
-    (templateUuid?identity(it,templateUuid,out.kind==='reagent'?id:null,out.kind==='reagent'?mappings.reagentNames?.[id]:'',out.kind==='reagent'?mappings.reagentAliases?.[id]:[]):it.getFlag?.(MID,'recipeId')===id));
+    (templateUuid?identity(it,templateUuid,['reagent','herb'].includes(out.kind)?id:null,
+      out.kind==='reagent'?mappings.reagentNames?.[id]:out.kind==='herb'?mappings.herbNames?.[id]:'',
+      out.kind==='reagent'?mappings.reagentAliases?.[id]:out.kind==='herb'?mappings.herbAliases?.[id]:[]):it.getFlag?.(MID,'recipeId')===id));
   if(matching){
     const target=updates.find(u=>u._id===matching.id);
     if(target)target['system.quantity']+=out.quantity;
