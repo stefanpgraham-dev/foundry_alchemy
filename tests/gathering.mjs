@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {BIOMES,REAGENTS,linkBiomeRegistry,biomeCoverage,biomeTable,
  weightedPick,gatherYield,validateGatherConfig,registryDiscrepancies} from '../scripts/gathering.mjs';
 import {defaultRules,validateRules} from '../scripts/rules.mjs';
+import {herbRarity} from '../scripts/directories.mjs';
 
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const registry=JSON.parse(fs.readFileSync(path.join(root,'data/herb-registry.json'),'utf8'));
@@ -68,6 +69,10 @@ assert(!biomeTable(customized,'Tundra').some(x=>x.herb.name==='Rimeberry'));
 assert.throws(()=>validateGatherConfig({biomeDC:{Tundra:41}}),/1–40/);
 assert.throws(()=>validateGatherConfig({herbs:{'nonsense':{weight:5}}}),/UUID/);
 assert.throws(()=>validateGatherConfig({herbs:{'Item.one':{weight:101}}}),/0 to 100/);
+assert.equal(herbRarity({flags:{'alchemy-workbench':{alchemyTier:'exotic'}},
+ system:{rarity:'veryRare'}}).rarity,'exotic','Alchemical Exotic tier survives strict 5e Item schema');
+assert.equal(herbRarity({flags:{'alchemy-workbench':{alchemyTier:'rare'}},
+ system:{rarity:'rare'}}).rarity,'rare');
 assert.equal(defaultRules().gathering.dc,15);
 assert.deepEqual(defaultRules().gathering.tierWeights,{common:60,rare:30,exotic:10});
 assert.equal(validateRules({}).gathering.plusFive,5);
