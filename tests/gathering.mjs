@@ -88,4 +88,23 @@ const moduleText=fs.readFileSync(path.join(root,'scripts/module.mjs'),'utf8');
 assert(moduleText.includes("mode:'gather'" )===false || moduleText.includes("p.mode==='gather'"), 'mode wired');
 assert(moduleText.includes("p.mode==='gather'"),'GM-authoritative gathering transaction wired');
 assert(moduleText.includes('applyInventory(actor,[],outputs,map)'),'gathered Items awarded via inventory transaction');
+globalThis.foundry={utils:{escapeHTML:x=>String(x)}};
+globalThis.game={user:{isGM:true}};
+const {gatherView,gatherSetupView}=await import('../scripts/gathering-ui.mjs');
+const app={gatherBiome:'Tundra',actor:{name:'Hero'},
+ services:{
+  herbs:catalog,herbRegistry:registry,
+  rules:()=>defaultRules(),
+  gatherConfig:()=>({biomeDC:{Tundra:16},herbs:{}}),
+  herbalismEligibility:()=>({ok:true,errors:[]})
+ }};
+const gatherHtml=gatherView(app);
+assert(gatherHtml.includes('Rimeberry')&&gatherHtml.includes('DC 16'),'gathering tab previews source-linked Tundra herbs and biome override');
+assert(gatherHtml.includes('gather-roll')&&gatherHtml.includes('DC +5'),'gathering control and DC +5 description shown');
+const setupHtml=gatherSetupView(app);
+assert(setupHtml.includes('gm-gather-import')&&setupHtml.includes('gm-gather-save'),'GM has explicit install/save controls');
+assert(setupHtml.includes('23')&&setupHtml.includes('Gathering'),'GM sees uninstalled seed catalogue');
+const theme=fs.readFileSync(path.join(root,'styles/theme-and-cards.css'),'utf8');
+assert(theme.includes('awb-gather-layout')&&theme.includes('--awb-ui-panel'),'gathering presentation uses theme variables');
+
 console.log('Biome coverage (10×9), 43 Notion items, 23 new illustrations, weights, overrides and DC +5/+10 gathering passed.');
