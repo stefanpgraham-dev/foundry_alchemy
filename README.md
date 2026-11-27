@@ -1,6 +1,6 @@
 # Alchemy Workbench — Foundry VTT v14 / D&D 5e
 
-**v0.5.6 — resolve potion artwork from the real mapped Item when client compendium indexes are incomplete.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
+**v0.5.7 — GM PC-only macro selection and actor-sheet context.** This release has automated tests, but has not been tested interactively in a running Foundry v14 world. Back up the world before installing or updating; alchemy operations modify actor inventories.
 
 ## Installation
 
@@ -20,6 +20,14 @@ Or extract the `alchemy-workbench` folder from the release ZIP to `Data/modules/
 - Inventory shows all nine reagent balances and recognised herbs. It also lists likely unmatched herbs/reagents with suggestions for the GM to review mappings.
 - A GM must be connected when players craft. The active GM validates and executes inventory transactions and rolls. Dice So Nice is optional and integrates via normal Foundry Roll chat messages.
 - When both follow-up checks succeed after an initial failure, the player is prompted **after those dice have rolled** to choose full batch at +50% brewing time or partial batch immediately.
+
+## v0.5.7 — actor selection entry points
+
+**GM macro:** `game.modules.get("alchemy-workbench").api.open()` now lists only D&D 5e **Character** actors. NPCs, vehicles and other actor types are excluded from the GM's macro picker. A selected PC token (or the user's assigned character) retains its existing preference over a manual selection, but a selected NPC token is ignored. Non-GM actor visibility and permissions are unchanged.
+
+**Actor sheet:** The Alchemy button in the sheet's header opens the workbench for **that exact World Actor**, bypassing the picker, whether the actor is a PC or NPC. The API also supports `api.open({actor: game.actors.get("ACTOR_ID")})` or `api.open({actorId: "ACTOR_ID"})` for explicit launches. The server-side GM permission and inventory checks still apply. Unlinked/synthetic token actor sheets do not silently redirect inventory mutations to the corresponding base NPC; open that NPC's World Actor sheet instead.
+
+**GM Setup:** `api.setup()` remains usable in an empty world or in a world containing only NPCs, without requiring a player character. The previous `api.open()` macro continues to work.
 
 ## v0.5.6 — reliable artwork for recipes and Brew Potions
 
