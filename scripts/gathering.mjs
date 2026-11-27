@@ -11,11 +11,10 @@ export function linkBiomeRegistry(scanned=[],registry={},overrides={}){
   const original=byName.get(herbNameKey(herb.name))||null;
   const override=overrides?.[herb.sourceUuid]||{};
   const biomes=Array.isArray(override.biomes)?override.biomes:
-    Array.isArray(herb.biomes)&&herb.biomes.length?herb.biomes:
-    original?.biomes||[];
+    original?.biomes||herb.biomes||[];
   const clean=[...new Set(biomes.filter(x=>BIOMES.includes(x)))];
   return {...herb,biomes:clean,
-   gatherWeight:safeWeight(override.weight??herb.gatherWeight??original?.weight??1),
+   gatherWeight:safeWeight(override.weight??original?.weight??herb.gatherWeight??1),
    notionUrl:original?.notionUrl||'',registryMatched:Boolean(original),
    registryRarity:original?.rarity||'',
    registryReagents:original?.reagents||[]};
@@ -80,4 +79,30 @@ export function registryDiscrepancies(herbs){
    errors.push({name:h.name,kind:'reagent',message:'Foundry has extra output '+k+' absent from Notion'});
   return errors;
  });
+}
+
+/** Saved world overrides are deliberately keyed by exact source UUIDs. */
+export function validateGatherConfig(raw={}){
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Gathering configuration must be an object.');
+ const biomeDC={};
+ for(const [biome,number] of Object.entries(raw.biomeDC||{})){
+  if(!BIOMES.includes(biome))throw Error('Unknown gathering biome override: '+biome);
+  if(!Number.isSafeInteger(Number(number))||Number(number)<1||Number(number)>40)
+   throw Error('Biome gathering DC must be 1–40.');
+  biomeDC[biome]=Number(number);
+ }
+ const herbs={};
+ for(const [uuid,options] of Object.entries(raw.herbs||{})){
+  if(!/^(Item|Compendium)\./.test(uuid))throw Error('Gathering override needs a valid source Item UUID.');
+  const weight=Number(options?.weight??1);
+  if(!Number.isSafeInteger(weight)||weight<0||weight>100)
+   throw Error('Herb gathering weight must be an integer from 0 to 100.');
+  herbs[uuid]={weight};
+  if(options?.biomes!==undefined){
+   if(!Array.isArray(options.biomes)||options.biomes.some(b=>!BIOMES.includes(b)))
+    throw Error('Herb gathering biome override must list valid environments.');
+   herbs[uuid].biomes=[...new Set(options.biomes)];
+  }
+ }
+ return {biomeDC,herbs};
 }
