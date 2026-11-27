@@ -3,6 +3,7 @@ import {itemFolders,folderLabel,itemPacks,packLabel,normalizeDirectoryConfig} fr
 import {KEYS} from './engine.mjs';
 import {recipeEditorView,recipeEditorAction} from './recipe-ui.mjs';
 import {rulesView,rulesEditorAction} from './rules-ui.mjs';
+import {gatherSetupView,gatherAction} from './gathering-ui.mjs';
 
 const esc=value=>foundry.utils.escapeHTML(String(value??''));
 const label=value=>String(value||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
@@ -88,11 +89,12 @@ export function directoryView(app){
  const nav='<div class="awb-subtabs">'+[
   ['directories','Directories'],['herbs','Herbs ('+app.services.herbs.length+')'],
   ['reagents','Reagents ('+Object.keys(map.reagents||{}).length+'/9)'],
-  ['recipes','Recipes ('+app.services.recipes.length+')'],['rules','Rules']
+  ['recipes','Recipes ('+app.services.recipes.length+')'],['gathering','Gathering'],['rules','Rules']
  ].map(([id,name])=>'<button type="button" data-gm-kind="'+id+'" class="'+(kind===id?'active':'')+'">'+esc(name)+'</button>').join('')+'</div>';
  let body='';
  if(kind==='recipes')body=recipeEditorView(app);
   else if(kind==='rules')body=rulesView(app);
+ else if(kind==='gathering')body=gatherSetupView(app);
  else if(kind==='directories'){
   body='<p class="awb-muted">Choose World Item folders, Item compendiums, or both. Herbs must link to their reagent Items. Potion sources are optional: matching recipe names are linked automatically; existing explicit output links remain authoritative.</p>'+
    foldersBar+recursive+raritySetup+
@@ -151,6 +153,7 @@ export function directoryView(app){
 
 export async function directoryAction(app,action,target){
  if(!game.user.isGM)throw new Error('GM privileges required.');
+ if(action.startsWith('gm-gather-'))return gatherAction(app,action);
  if(action.startsWith('gm-recipe-'))return recipeEditorAction(app,action,target);
   if(action.startsWith('gm-rules-'))return rulesEditorAction(app,action);
  if(action==='gm-open-item'){
