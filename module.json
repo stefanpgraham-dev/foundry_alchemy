@@ -1,8 +1,8 @@
 {
   "id": "alchemy-workbench",
   "title": "Alchemy Workbench",
-  "description": "Foundry v14 D&D5e alchemy with directory-driven herb, reagent and potion sources, recipe-specific brewing tools, configurable rules and mixed World/compendium support.",
-  "version": "0.5.7",
+  "description": "Foundry v14 D&D5e alchemy, potion brewing, herb refining and biome-weighted gathering with world/compendium sources.",
+  "version": "0.5.8",
   "authors": [
     {
       "name": "stefanpgraham-dev"
