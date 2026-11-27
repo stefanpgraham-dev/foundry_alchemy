@@ -47,6 +47,7 @@ export function gatherSetupView(app){
  const newHerbs=(registry.herbs||[]).filter(h=>h.new);
  const missing=newHerbs.filter(h=>!linked.has(h.name.toLowerCase()));
  const caveats=registryDiscrepancies(available);
+ const originalTierConflicts=(registry.herbs||[]).filter(h=>h.reagents?.some(key=>!key.startsWith(h.rarity+'_')));
  const list=biomeTable(available,chosen,rules.gathering.tierWeights);
  const weightRows=list.map(({herb,probability})=>
   '<div class="awb-gather-weight-row">'+art(herb)+'<span><strong>'+esc(herb.name)+'</strong><small>'+esc(nice(herb.rarity))+' · '+probability.toFixed(1)+'% effective chance</small></span>'+
@@ -57,7 +58,8 @@ export function gatherSetupView(app){
   button('gm-gather-save','Save biome tables','awb-primary')+'</div>'+
   '<div class="awb-folder-summary"><span><strong>'+available.length+'</strong> linked herb Items</span>'+
   '<span><strong>'+missing.length+'</strong> suggested herbs not imported</span>'+
-  '<span><strong>'+caveats.length+'</strong> Notion/source differences</span></div>'+
+  '<span><strong>'+caveats.length+'</strong> Notion/source differences</span>'+ 
+  '<span><strong>'+originalTierConflicts.length+'</strong> canonical tier inconsistencies</span></div>'+
   '<div class="awb-two-col"><div><h3>Biome coverage &amp; optional DC overrides</h3><div class="awb-gather-biomes">'+rows+'</div></div>'+
   '<div><h3>Relative herb weights · '+esc(chosen)+'</h3>'+
   '<p class="awb-muted">0 removes a herb from this biome table. Tier weights (Common/Rare/Exotic) are in Rules.</p>'+
@@ -65,6 +67,8 @@ export function gatherSetupView(app){
   '<div class="awb-bottom"><div><strong>New regional plants ('+newHerbs.length+')</strong><p class="awb-muted">'+esc(missing.map(h=>h.name).join(', ')||'All proposed herb names are present in the linked catalogue.')+'</p>'+
   '<p class="awb-muted">Import creates World Items with reagent UUID links, pictures and descriptions. It never replaces existing Items. Refresh herb sources after importing.</p></div>'+
   button('gm-gather-import','Install missing biome herbs','awb-primary')+'</div>'+
+  '<details><summary>Notion herb tiers ('+originalTierConflicts.length+' anomalies)</summary><p class="awb-muted">These are pre-existing Notion definitions where the herb rarity differs from the reagent tier; no automatic changes are made.</p>'+
+  originalTierConflicts.map(h=>'<p><strong>'+esc(h.name)+'</strong> · Herb '+esc(h.rarity)+' → '+esc(h.reagents.join(' / '))+'</p>').join('')+'</details>'+
   '<details><summary>Notion/source comparison ('+caveats.length+')</summary>'+
   '<div class="awb-folder-issues">'+(caveats.map(c=>'<p><strong>'+esc(c.name)+'</strong> · '+esc(c.message)+'</p>').join('')||'<p>No property differences detected for matched herbs.</p>')+'</div></details>'+
   '</section>';
