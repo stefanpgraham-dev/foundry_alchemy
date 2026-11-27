@@ -393,9 +393,19 @@ export function scanDirectories(world,config,previous={},sources={}){
  const added=herbs.filter(h=>!oldById.has(h.id)).map(h=>h.name);
  const changed=herbs.filter(h=>oldById.has(h.id)&&!equalHerb(h,oldById.get(h.id))).map(h=>h.name);
  const removed=(previous.herbs||[]).filter(h=>!newById.has(h.id)).map(h=>h.name);
+ // Carry artwork for the *exact mapped Item UUID* to other clients. Their
+ // compendium indexes may not have any image fields (or pack access).
+ const potionDocuments=new Map([...potions,...(sources.references||[]),...(world?.items?.contents||[])]
+  .filter(item=>item?.uuid).map(item=>[item.uuid,item]));
+ const outputImages={};
+ for(const uuid of Object.values(matchedPotions.outputs)){
+  const item=potionDocuments.get(uuid);
+  const img=item?.img||item?._source?.img||'';
+  if(typeof img==='string'&&img.trim()&&img!=='icons/svg/item-bag.svg')outputImages[uuid]=img;
+ }
  return{
   herbs,herbMappings,herbNames,herbAliases,reagentMappings,reagentNames,reagentAliases,reagentImages,
-  potionCatalog:matchedPotions.catalog,potionMappings:matchedPotions.outputs,
+  potionCatalog:matchedPotions.catalog,potionMappings:matchedPotions.outputs,outputImages,
    potionRecipeResults:matchedPotions.recipeResults,
   autoPotionMappings:matchedPotions.autoOutputs,updatedRecipes:matchedPotions.updatedRecipes,
   report:{
@@ -441,7 +451,9 @@ export async function scanConfiguredSources(world,config,previous={}, {packs,res
   ...pool.flatMap(x=>sourceAliases(x)),
   ...[...worldHerbs,...herbs].flatMap(item=>descriptionLinks(item.system?.description?.value).map(x=>x.uuid)),
   ...Object.values(previous.mappings?.reagents||{}),
-  ...Object.values(previous.mappings?.reagentOverrides||{})
+  ...Object.values(previous.mappings?.reagentOverrides||{}),
+  ...Object.values(previous.mappings?.outputs||{}),
+  ...(previous.recipes||[]).map(r=>r.outputUuid)
  ].filter(Boolean));
  const references=[];
  const resolver=resolveUuid||globalThis.fromUuid;
