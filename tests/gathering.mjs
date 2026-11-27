@@ -101,9 +101,10 @@ const app={gatherBiome:'Tundra',actor:{name:'Hero'},
 const gatherHtml=gatherView(app);
 assert(gatherHtml.includes('Rimeberry')&&gatherHtml.includes('DC 16'),'gathering tab previews source-linked Tundra herbs and biome override');
 assert(gatherHtml.includes('gather-roll')&&gatherHtml.includes('DC +5'),'gathering control and DC +5 description shown');
-const setupHtml=gatherSetupView(app);
+const preImport={...app,services:{...app.services,herbs:catalog.filter(h=>!registry.herbs.find(r=>r.name===h.name)?.new)}};
+const setupHtml=gatherSetupView(preImport);
 assert(setupHtml.includes('gm-gather-import')&&setupHtml.includes('gm-gather-save'),'GM has explicit install/save controls');
-assert(setupHtml.includes('23')&&setupHtml.includes('Gathering'),'GM sees uninstalled seed catalogue');
+assert(setupHtml.includes('23')&&setupHtml.includes('Gathering'),'GM sees all 23 not-yet-imported herbs');
 const theme=fs.readFileSync(path.join(root,'styles/theme-and-cards.css'),'utf8');
 assert(theme.includes('awb-gather-layout')&&theme.includes('--awb-ui-panel'),'gathering presentation uses theme variables');
 
